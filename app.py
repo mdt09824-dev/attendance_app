@@ -1,266 +1,439 @@
-import streamlit as st
-import json
 import os
-import pandas as pd
+import json
 from datetime import datetime
+import streamlit as st
 
-# File to store data
+DEFAULT_STUDENTS = [
+    "Rounak", "Nirob", "Jahidul", "Abir", "Tafin",
+    "Anik", "Muhin", "Mehedi", "Alif", "Samia",
+    "Sorna", "Tuli", "Tabassum", "Sumaiya", "Bonna",
+    "Runa", "Maria"
+]
+
+INITIAL_FINE = {
+    "Tabassum": 20,
+    "Runa": 20
+}
+
 DATA_FILE = "attendance_data.json"
 
-# Default data structure
-def load_data():
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            pass
-    return {
-        "students": [],
-        "attendance": {},
-        "payments": [],
-        "fees": {},  # Format: {"Student Name": {"Month_Year": "Paid"/"Due"}}
-        "settings": {
-            "default_fine": 10,
-            "special_fine": 50,
-            "monthly_fee": 500
-        }
-    }
+st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-data = load_data()
-
-st.set_page_config(page_title="Private Attendance & Fee E-Khata", page_icon="📚", layout="wide")
-
-# Custom CSS for professional look
+# Custom CSS for styling
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .stButton>button { width: 100%; border-radius: 6px; font-weight: bold; }
-    .metric-card { background-color: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
+    .stApp { background-color: #ffffff; color: #24292e; }
+    
+    .app-header {
+        margin-top: 25px;
+        margin-bottom: 15px;
+        font-size: 28px;
+        font-weight: 800;
+        text-align: center;
+        color: #1f2328;
+        border-bottom: 2px solid #eaeef2;
+        padding-bottom: 10px;
+    }
+
+    .card-container {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+    .stat-card {
+        flex: 1;
+        padding: 6px 4px;
+        border-radius: 8px;
+        text-align: center;
+        color: white;
+        min-height: 50px;
+    }
+    .c-present { background-color: #2ea043; }
+    .c-leave { background-color: #fb8532; }
+    .c-absent { background-color: #cf222e; }
+    .c-fee { background-color: #0969da; }
+
+    .stat-card small { font-size: 10px; color: #ffffff; }
+    .stat-card h4 { font-size: 13px; margin: 0; font-weight: bold; color: #ffffff; }
+
+    .student-card-box {
+        background-color: #f6f8fa;
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin-bottom: 4px;
+    }
+
+    .badge-present { background-color: #dafbe1; color: #1a7f37; border: 1px solid #2ea043; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
+    .badge-leave { background-color: #fff8c5; color: #9a6700; border: 1px solid #fb8532; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
+    .badge-absent { background-color: #ffebe9; color: #cf222e; border: 1px solid #cf222e; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
+    .badge-none { background-color: #eaeef2; color: #57606a; padding: 3px 8px; border-radius: 5px; font-size: 11px; }
+
+    .stButton button {
+        width: 100% !important;
+        background-color: #cf222e !important;
+        color: #ffdf00 !important;
+        border: 1px solid #a40e17 !important;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 12px;
+        padding: 6px 0px;
+    }
+
+    table {
+        width: 100%;
+        color: #24292e !important;
+        background-color: #f6f8fa !important;
+    }
+    th {
+        background-color: #eaeef2 !important;
+        color: #24292e !important;
+    }
+    td {
+        color: #24292e !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📚 Private Attendance & Fee E-Khata")
-st.markdown("শিক্ষক মহাশয়ের জন্য ডিজিটাল হাজিরা এবং মাসিক বেতন ম্যানেজমেন্ট সিস্টেম")
+def today_str():
+    return datetime.now().strftime("%Y-%m-%d")
 
-# Sidebar navigation
-menu = st.sidebar.selectbox("মেনু নির্বাচন করুন", [
-    "🏠 ড্যাশবোর্ড (Dashboard)",
-    "📝 আজকের হাজিরা (Attendance)",
-    "💰 মাসিক বেতন ম্যানেজমেন্ট (Tuition Fees)",
-    "💸 ফাইন কালেকশন (Fine Collection)",
-    "👥 মেম্বার ম্যানেজ (Manage Students)",
-    "⚙️ সেটিংস ও রিসেট (Settings)"
-])
+def format_date(d):
+    try:
+        return datetime.strptime(d, "%Y-%m-%d").strftime("%d-%m-%Y")
+    except:
+        return d
 
-# 1. Dashboard
-if menu == "🏠 ড্যাশবোর্ড (Dashboard)":
-    st.header("📊 সার্বিক ড্যাশবোর্ড সামারি")
+def blank_day(students):
+    return {name: "" for name in students}
+
+def load_data():
+    if not os.path.exists(DATA_FILE):
+        return {
+            "students": DEFAULT_STUDENTS.copy(),
+            "days": {},
+            "initial_fine": INITIAL_FINE.copy(),
+            "payments": {},
+            "fine_settings": {
+                "regular": 20,
+                "special_dates": {} # format: {"YYYY-MM-DD": 30}
+            }
+        }
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        data.setdefault("students", DEFAULT_STUDENTS.copy())
+        data.setdefault("days", {})
+        data.setdefault("initial_fine", INITIAL_FINE.copy())
+        data.setdefault("payments", {})
+        data.setdefault("fine_settings", {"regular": 20, "special_dates": {}})
+        
+        students = data["students"]
+        for day in data["days"].values():
+            for name in students:
+                day.setdefault(name, "")
+        return data
+    except:
+        return {
+            "students": DEFAULT_STUDENTS.copy(),
+            "days": {},
+            "initial_fine": INITIAL_FINE.copy(),
+            "payments": {},
+            "fine_settings": {"regular": 20, "special_dates": {}}
+        }
+
+def save_data(data):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+if "data" not in st.session_state:
+    st.session_state.data = load_data()
+
+data = st.session_state.data
+students = data["students"]
+
+# Sidebar Navigation Menu with exact requested order (Reset at the bottom)
+with st.sidebar:
+    st.markdown("### ☰ Navigation Menu")
+    nav_mode = st.radio(
+        "Menu", [
+            "Dashboard", 
+            "History", 
+            "Total Fine", 
+            "Collect Fee", 
+            "Manage Members", 
+            "Fine Setting", 
+            "Reset"
+        ], label_visibility="collapsed"
+    )
+
+# App Header
+st.markdown('<div class="app-header">📚 Attendance E-Khata</div>', unsafe_allow_html=True)
+
+# Date Selection
+selected_date_obj = st.date_input(
+    "Select Date", datetime.strptime(today_str(), "%Y-%m-%d")
+)
+current_date = selected_date_obj.strftime("%Y-%m-%d")
+
+if current_date not in data["days"]:
+    data["days"][current_date] = blank_day(students)
+    save_data(data)
+
+def get_current_fines():
+    fine_settings = data.get("fine_settings", {"regular": 20, "special_dates": {}})
+    regular_fine = fine_settings.get("regular", 20)
+    special_dates = fine_settings.get("special_dates", {})
+
+    fines = {s: int(data["initial_fine"].get(s, 0)) for s in students}
     
-    total_students = len(data["students"])
+    for d_str, d_item in data["days"].items():
+        current_day_fine = special_dates.get(d_str, regular_fine)
+        for student, status in d_item.items():
+            if status == "ABSENT":
+                if student in fines:
+                    fines[student] = fines.get(student, 0) + current_day_fine
     
-    # Calculate Total Fines Due
-    total_fine_due = 0
-    for student in data["students"]:
-        student_fines = sum([entry.get("amount", 0) for entry in data.get("payments", []) if entry["student"] == student and not entry.get("paid", False)])
-        total_fine_due += student_fines
+    payments = data.get("payments", {})
+    net_fines = {}
+    for s in students:
+        total_due = fines.get(s, 0)
+        paid = payments.get(s, 0)
+        net_fines[s] = max(0, total_due - paid)
+    return net_fines, fines
 
-    # Calculate Total Fee Due for current month
-    current_month_str = datetime.now().strftime("%B %Y")
-    monthly_fee = data["settings"].get("monthly_fee", 500)
-    total_fee_due = 0
-    for student in data["students"]:
-        student_fee_status = data["fees"].get(student, {}).get(current_month_str, "Due")
-        if student_fee_status == "Due":
-            total_fee_due += monthly_fee
+# ----------------- 1. DASHBOARD VIEW -----------------
+if nav_mode == "Dashboard":
+    day_data = data["days"].setdefault(current_date, blank_day(students))
 
-    col1, col2, col3 = st.columns(3)
+    present = sum(day_data.get(s) == "PRESENT" for s in students)
+    leave = sum(day_data.get(s) == "LEAVE" for s in students)
+    absent = sum(day_data.get(s) == "ABSENT" for s in students)
+    not_set = len(students) - present - leave - absent
+
+    net_fines, gross_fines = get_current_fines()
+    total_fine_amount = sum(net_fines.values())
+
+    st.markdown(f"""
+        <div class="card-container">
+            <div class="stat-card c-present">
+                <small>Present</small>
+                <h4>{present}</h4>
+            </div>
+            <div class="stat-card c-leave">
+                <small>Leave</small>
+                <h4>{leave}</h4>
+            </div>
+            <div class="stat-card c-absent">
+                <small>Absent</small>
+                <h4>{absent}</h4>
+            </div>
+            <div class="stat-card c-fee">
+                <small>Total Due</small>
+                <h4>{total_fine_amount}Tk</h4>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
+    st.markdown("---")
+
+    for student in students:
+        current_status = day_data.get(student, "")
+        
+        if current_status == "PRESENT":
+            status_cls = "badge-present"
+            status_text = "PRESENT"
+        elif current_status == "LEAVE":
+            status_cls = "badge-leave"
+            status_text = "LEAVE"
+        elif current_status == "ABSENT":
+            status_cls = "badge-absent"
+            status_text = "ABSENT"
+        else:
+            status_cls = "badge-none"
+            status_text = "-"
+
+        with st.container():
+            st.markdown(f"""
+                <div class="student-card-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 14px; font-weight: 600; color: #24292e;">👤 {student}</span>
+                        <span class="{status_cls}">{status_text}</span>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            b_cols = st.columns(3)
+            if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
+                data["days"][current_date][student] = "PRESENT"
+                save_data(data)
+                st.rerun()
+            if b_cols[1].button("👤 LEAVE", key=f"btn_l_{student}"):
+                data["days"][current_date][student] = "LEAVE"
+                save_data(data)
+                st.rerun()
+            if b_cols[2].button("❌ ABSENT", key=f"btn_a_{student}"):
+                data["days"][current_date][student] = "ABSENT"
+                save_data(data)
+                st.rerun()
+            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+
+# ----------------- 2. HISTORY VIEW -----------------
+elif nav_mode == "History":
+    st.markdown("### 📅 Attendance History")
+    sorted_dates = sorted(data["days"].keys(), reverse=True)
+
+    if not sorted_dates:
+        st.info("No attendance history found yet.")
+    else:
+        for d in sorted_dates:
+            day = data["days"][d]
+            p = sum(day.get(s) == "PRESENT" for s in students)
+            l = sum(day.get(s) == "LEAVE" for s in students)
+            a = sum(day.get(s) == "ABSENT" for s in students)
+
+            with st.expander(f"📅 {format_date(d)}  —  Present: {p} | Leave: {l} | Absent: {a}"):
+                history_list = []
+                for s in students:
+                    st_val = day.get(s, "-")
+                    history_list.append({
+                        "Student Name": s,
+                        "Status": st_val if st_val else "Not Set"
+                    })
+                st.table(history_list)
+
+# ----------------- 3. TOTAL FINE VIEW -----------------
+elif nav_mode == "Total Fine":
+    st.markdown("### 💰 Total Due / Fine List")
+    net_fines, gross_fines = get_current_fines()
+    payments = data.get("payments", {})
+
+    fine_data = []
+    for s in students:
+        tot_fine = gross_fines.get(s, 0)
+        paid_amt = payments.get(s, 0)
+        rem_due = net_fines.get(s, 0)
+        fine_data.append({
+            "Student Name": s,
+            "Total Fine": f"{tot_fine} Tk",
+            "Paid": f"{paid_amt} Tk",
+            "Remaining Due": f"{rem_due} Tk"
+        })
+    st.table(fine_data)
+
+# ----------------- 4. COLLECT FEE VIEW -----------------
+elif nav_mode == "Collect Fee":
+    st.markdown("### 💵 Collect Fine / Clear Dues")
+    st.write("বকেয়া টাকা পরিশোধ করলে এখানে এন্ট্রি দিন, যা মোট বকেয়া থেকে স্বয়ংক্রিয়ভাবে মাইনাস হয়ে যাবে।")
+
+    net_fines, _ = get_current_fines()
+    selected_student = st.selectbox("Select Student", students)
+    current_due = net_fines.get(selected_student, 0)
+    
+    st.info(f"Current Due for {selected_student}: **{current_due} Taka**")
+    pay_amount = st.number_input("Enter Amount to Pay (Taka)", min_value=0, step=10)
+
+    if st.button("Confirm Payment"):
+        if pay_amount > 0:
+            current_paid = data.setdefault("payments", {}).get(selected_student, 0)
+            data["payments"][selected_student] = current_paid + pay_amount
+            save_data(data)
+            st.success(f"Successfully collected {pay_amount} Taka from {selected_student}!")
+            st.rerun()
+        else:
+            st.warning("Please enter a valid amount greater than 0.")
+
+# ----------------- 5. MANAGE MEMBERS VIEW -----------------
+elif nav_mode == "Manage Members":
+    st.markdown("### 👥 Manage Members")
+    st.write("নতুন শিক্ষার্থী যোগ করুন অথবা প্রাইভেট ছেড়ে যাওয়া শিক্ষার্থীকে তালিকা থেকে বাদ দিন।")
+
+    col1, col2 = st.columns(2)
+
     with col1:
-        st.markdown(f'<div class="metric-card"><h3>মোট শিক্ষার্থী</h3><h2>{total_students} জন</h2></div>', unsafe_allow_html=True)
+        st.markdown("#### Add New Student")
+        new_name = st.text_input("Student Name")
+        if st.button("Add Student"):
+            if new_name and new_name not in students:
+                students.append(new_name)
+                data["students"] = students
+                for d in data["days"].values():
+                    d[new_name] = ""
+                save_data(data)
+                st.success(f"Successfully added {new_name}!")
+                st.rerun()
+            elif new_name in students:
+                st.warning("Student already exists!")
+            else:
+                st.warning("Please enter a valid name.")
+
     with col2:
-        st.markdown(f'<div class="metric-card"><h3>বকেয়া ফাইন</h3><h2 style="color: #d9534f;">{total_fine_due} টাকা</h2></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown(f'<div class="metric-card"><h3>এই মাসের বকেয়া বেতন</h3><h2 style="color: #f0ad4e;">{total_fee_due} টাকা</h2></div>', unsafe_allow_html=True)
-
-    st.divider()
-    st.subheader("📋 শিক্ষার্থীদের তালিকা")
-    if data["students"]:
-        df_students = pd.DataFrame({"শিক্ষার্থীর নাম": data["students"]})
-        st.dataframe(df_students, use_container_width=True)
-    else:
-        st.info("এখনো কোনো শিক্ষার্থী যুক্ত করা হয়নি। 'মেম্বার ম্যানেজ' অপশন থেকে শিক্ষার্থী যোগ করুন।")
-
-# 2. Attendance
-elif menu == "📝 আজকের হাজিরা (Attendance)":
-    st.header("📝 উপস্থিতি এবং ফাইন এন্ট্রি")
-    
-    if not data["students"]:
-        st.warning("প্রথমে 'মেম্বার ম্যানেজ' থেকে শিক্ষার্থী যোগ করুন।")
-    else:
-        selected_date = st.date_input("তারিখ নির্বাচন করুন", datetime.today())
-        date_str = selected_date.strftime("%Y-%m-%d")
-        
-        if date_str not in data["attendance"]:
-            data["attendance"][date_str] = {s: "Present" for s in data["students"]}
-            
-        st.info(f"তারিখ: {date_str} - হাজিরা ও ফাইন মার্ক করুন")
-        
-        with st.form("attendance_form"):
-            updated_attendance = {}
-            fines_to_add = []
-            
-            for student in data["students"]:
-                col1, col2, col3 = st.columns([3, 2, 2])
-                with col1:
-                    st.write(f"**{student}**")
-                with col2:
-                    current_status = data["attendance"][date_str].get(student, "Present")
-                    status = st.selectbox("স্ট্যাটাস", ["Present", "Absent", "Leave"], index=["Present", "Absent", "Leave"].index(current_status), key=f"status_{student}")
-                    updated_attendance[student] = status
-                with col3:
-                    fine_type = st.selectbox("ফাইন", ["কোনোটি না", "সাধারণ ফাইন", "বিশেষ ফাইন"], key=f"fine_{student}")
-                    if fine_type == "সাধারণ ফাইন":
-                        fines_to_add.append({"student": student, "amount": data["settings"]["default_fine"], "reason": f"Absent on {date_str}", "date": date_str, "paid": False})
-                    elif fine_type == "বিশেষ ফাইন":
-                        fines_to_add.append({"student": student, "amount": data["settings"]["special_fine"], "reason": f"Special Fine on {date_str}", "date": date_str, "paid": False})
-            
-            submitted = st.form_submit_button("হাজিরা ও ফাইন সেভ করুন")
-            if submitted:
-                data["attendance"][date_str] = updated_attendance
-                for fine in fines_to_add:
-                    data["payments"].append(fine)
+        st.markdown("#### Remove Student")
+        rem_student = st.selectbox("Select Student to Remove", students)
+        if st.button("Remove Student"):
+            if rem_student in students:
+                students.remove(rem_student)
+                data["students"] = students
+                for d in data["days"].values():
+                    d.pop(rem_student, None)
                 save_data(data)
-                st.success("হাজিরা সফলভাবে সংরক্ষিত হয়েছে!")
+                st.success(f"Successfully removed {rem_student}!")
+                st.rerun()
 
-# 3. Tuition Fee Management (The new star feature)
-elif menu == "💰 মাসিক বেতন ম্যানেজমেন্ট (Tuition Fees)":
-    st.header("💰 মাসিক টিউশন ফি ম্যানেজমেন্ট")
-    
-    if not data["students"]:
-        st.warning("প্রথমে শিক্ষার্থী যোগ করুন।")
-    else:
-        # Month selector
-        months = ["January 2026", "February 2026", "March 2026", "April 2026", "May 2026", "June 2026", 
-                  "July 2026", "August 2026", "September 2026", "October 2026", "November 2026", "December 2026"]
-        current_default_month = datetime.now().strftime("%B %Y")
-        if current_default_month not in months:
-            months.append(current_default_month)
-            
-        selected_month = st.selectbox("মাস নির্বাচন করুন", months, index=months.index(current_default_month) if current_default_month in months else 0)
-        monthly_fee_amount = data["settings"].get("monthly_fee", 500)
-        
-        st.markdown(f"**নির্ধারিত মাসিক ফি:** {monthly_fee_amount} টাকা")
-        
-        # Display Fee Table
-        fee_data = []
-        for student in data["students"]:
-            status = data["fees"].get(student, {}).get(selected_month, "Due")
-            fee_data.append({"শিক্ষার্থীর নাম": student, "মাস": selected_month, "পরিমাণ": f"{monthly_fee_amount} Tk", "স্ট্যাটাস": status})
-            
-        df_fee = pd.DataFrame(fee_data)
-        st.dataframe(df_fee, use_container_width=True)
-        
-        st.divider()
-        st.subheader("বেতন পরিশোধ আপডেট করুন (Pay Fee)")
-        with st.form("fee_update_form"):
-            pay_student = st.selectbox("শিক্ষার্থী নির্বাচন করুন", data["students"])
-            new_status = st.selectbox("বেতনের অবস্থা", ["Paid", "Due"])
-            submit_fee = st.form_submit_button("বেতন স্ট্যাটাস আপডেট করুন")
-            
-            if submit_fee:
-                if pay_student not in data["fees"]:
-                    data["fees"][pay_student] = {}
-                data["fees"][pay_student][selected_month] = new_status
-                save_data(data)
-                st.success(f"{pay_student}-এর {selected_month} মাসের বেতন স্ট্যাটাস '{new_status}' করা হয়েছে!")
+    st.markdown("---")
+    st.markdown("#### Current Student List")
+    st.write(", ".join(students))
 
-# 4. Fine Collection
-elif menu == "💸 ফাইন কালেকশন (Fine Collection)":
-    st.header("💸 বকেয়া ফাইন কালেকশন")
-    
-    unpaid_fines = [i for i, entry in enumerate(data.get("payments", [])) if not entry.get("paid", False)]
-    
-    if not unpaid_fines:
-        st.success("কারো কোনো বকেয়া ফাইন নেই! 🎉")
-    else:
-        st.subheader("বকেয়া ফাইনের তালিকা")
-        display_list = []
-        for idx in unpaid_fines:
-            entry = data["payments"][idx]
-            display_list.append({
-                "Index": idx,
-                "শিক্ষার্থী": entry["student"],
-                "কারণ": entry["reason"],
-                "পরিমাণ": f"{entry['amount']} Tk",
-                "তারিখ": entry["date"]
-            })
-        st.dataframe(pd.DataFrame(display_list), use_container_width=True)
-        
-        with st.form("collect_fine_form"):
-            selected_idx = st.selectbox("পরিশোধ হয়েছে এমন এন্ট্রি সিলেক্ট করুন (Index নম্বর অনুযায়ী)", unpaid_fines, format_func=lambda x: f"ID {x}: {data['payments'][x]['student']} - {data['payments'][x]['amount']} Tk ({data['payments'][x]['reason']})")
-            collect_btn = st.form_submit_button("টাকা আদায় হিসেবে মার্ক করুন (Paid)")
-            
-            if collect_btn:
-                data["payments"][selected_idx]["paid"] = True
-                save_data(data)
-                st.success("ফাইনের টাকা আদায় হিসেবে আপডেট করা হয়েছে!")
+# ----------------- 6. FINE SETTING VIEW -----------------
+elif nav_mode == "Fine Setting":
+    st.markdown("### ⚙️ Fine Settings")
+    st.write("সাধারণ দিনের ফাইন রেট এবং পরীক্ষার দিন বা বিশেষ দিনের জন্য আলাদা ফাইন সেট করুন।")
 
-# 5. Manage Students
-elif menu == "👥 মেম্বার ম্যানেজ (Manage Students)":
-    st.header("👥 শিক্ষার্থী যোগ বা বাদ দিন")
+    fine_settings = data.setdefault("fine_settings", {"regular": 20, "special_dates": {}})
+    
+    current_regular = fine_settings.get("regular", 20)
+    new_regular = st.number_input("Regular Fine Amount (Per Absent)", min_value=0, value=int(current_regular), step=5)
+    
+    st.markdown("#### Special / Exam Day Fine")
+    st.write("যেদিন পরীক্ষা বা বিশেষ দিন থাকবে, সেই তারিখের জন্য আলাদা ফাইন পরিমাণ নির্ধারণ করুন।")
+    
+    selected_spec_date = st.date_input("Select Special Date", datetime.strptime(today_str(), "%Y-%m-%d"))
+    spec_date_str = selected_spec_date.strftime("%Y-%m-%d")
+    
+    existing_spec_fine = fine_settings["special_dates"].get(spec_date_str, 30)
+    new_spec_fine = st.number_input(f"Fine for {format_date(spec_date_str)} (Taka)", min_value=0, value=int(existing_spec_fine), step=5)
+
+    if st.button("Save Fine Settings"):
+        fine_settings["regular"] = new_regular
+        fine_settings["special_dates"][spec_date_str] = new_spec_fine
+        data["fine_settings"] = fine_settings
+        save_data(data)
+        st.success("Fine settings updated successfully!")
+        st.rerun()
+
+# ----------------- 7. RESET VIEW -----------------
+elif nav_mode == "Reset":
+    st.markdown("### ⚠️ Reset All Data")
+    st.warning("সতর্কতা: রিসেট করলে সমস্ত শিক্ষার্থীর উপস্থিতি, হিস্ট্রি এবং ফাইন/বকেয়ার হিসাব মুছে গিয়ে অ্যাপটি একদম নতুন অবস্থায় চলে যাবে।")
     
     col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("নতুন শিক্ষার্থী যোগ করুন")
-        with st.form("add_student_form"):
-            new_name = st.text_input("শিক্ষার্থীর নাম")
-            add_btn = st.form_submit_button("যোগ করুন")
-            if add_btn:
-                if new_name and new_name not in data["students"]:
-                    data["students"].append(new_name)
-                    save_data(data)
-                    st.success(f"'{new_name}' সফলভাবে যুক্ত হয়েছে!")
-                elif new_name in data["students"]:
-                    st.warning("এই নামে ইতিমধ্যে শিক্ষার্থী রয়েছে।")
-                else:
-                    st.error("দয়া করে নাম লিখুন।")
-                    
-    with col2:
-        st.subheader("শিক্ষার্থী বাদ দিন")
-        with st.form("remove_student_form"):
-            if data["students"]:
-                rem_name = st.selectbox("শিক্ষার্থী নির্বাচন করুন", data["students"])
-                rem_btn = st.form_submit_button("বাদ দিন")
-                if rem_btn:
-                    data["students"].remove(rem_name)
-                    save_data(data)
-                    st.success(f"'{rem_name}' তালিকা থেকে বাদ দেওয়া হয়েছে!")
-            else:
-                st.info("তালিকা খালি আছে।")
-
-# 6. Settings
-elif menu == "⚙️ সেটিংস ও রিসেট (Settings)":
-    st.header("⚙️ অ্যাপ সেটিংস ও ফাইন কনফিগারেশন")
     
-    with st.form("settings_form"):
-        def_fine = st.number_input("সাধারণ ফাইন (টাকা)", value=data["settings"].get("default_fine", 10))
-        spec_fine = st.number_input("বিশেষ ফাইন (টাকা)", value=data["settings"].get("special_fine", 50))
-        m_fee = st.number_input("মাসিক টিউশন ফি (টাকা)", value=data["settings"].get("monthly_fee", 500))
-        
-        save_settings = st.form_submit_button("সেটিংস সেভ করুন")
-        if save_settings:
-            data["settings"]["default_fine"] = def_fine
-            data["settings"]["special_fine"] = spec_fine
-            data["settings"]["monthly_fee"] = m_fee
-            save_data(data)
-            st.success("সেটিংস সফলভাবে আপডেট হয়েছে!")
+    with col1:
+        if st.button("Cancel"):
+            st.rerun()
             
-    st.divider()
-    if st.button("⚠️ সমস্ত ডেটা রিসেট করুন (Reset All Data)", type="primary"):
-        if os.path.exists(DATA_FILE):
-            os.remove(DATA_FILE)
-        st.success("সব ডেটা সফলভাবে মুছে ফেলা হয়েছে! অ্যাপ রিলোড করুন।")
+    with col2:
+        if st.button("Reset"):
+            if os.path.exists(DATA_FILE):
+                os.remove(DATA_FILE)
+            st.session_state.data = {
+                "students": DEFAULT_STUDENTS.copy(),
+                "days": {},
+                "initial_fine": INITIAL_FINE.copy(),
+                "payments": {},
+                "fine_settings": {"regular": 20, "special_dates": {}}
+            }
+            save_data(st.session_state.data)
+            st.success("অ্যাপটি সফলভাবে রিসেট করা হয়েছে!")
+            st.rerun()
