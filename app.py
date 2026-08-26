@@ -16,49 +16,40 @@ DATA_FILE = "attendance_data.json"
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Advanced Custom CSS to style everything like a sleek mobile app UI
+# Custom CSS for UI adjustments matching your requirements
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #ffffff; }
+    
+    /* Reduce top spacing */
+    .block-container { padding-top: 1rem !important; }
+
+    /* Compact Summary Cards */
     .card-container {
         display: flex;
-        gap: 8px;
-        margin-bottom: 15px;
+        gap: 6px;
+        margin-bottom: 10px;
     }
     .stat-card {
         flex: 1;
-        padding: 10px;
-        border-radius: 10px;
+        padding: 6px 4px;
+        border-radius: 8px;
         text-align: center;
         color: white;
+        min-height: 55px;
     }
     .c-present { background-color: #1b3b22; border: 1px solid #28a745; }
     .c-leave { background-color: #3b331b; border: 1px solid #ffc107; }
     .c-absent { background-color: #3b1b1b; border: 1px solid #dc3545; }
     .c-fee { background-color: #1b283b; border: 1px solid #007bff; }
 
-    /* Custom Table Layout for Students */
-    .styled-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-        background-color: #161b22;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    .styled-table th, .styled-table td {
-        padding: 10px 8px;
-        text-align: left;
-        border-bottom: 1px solid #30363d;
-        font-size: 14px;
-    }
-    .styled-table th {
-        background-color: #21262d;
-        color: #8b949e;
-    }
-    .badge-p { color: #3fb950; font-weight: bold; }
-    .badge-l { color: #d29922; font-weight: bold; }
-    .badge-a { color: #f85149; font-weight: bold; }
+    .stat-card small { font-size: 10px; color: #d0d7de; }
+    .stat-card h4 { font-size: 14px; margin: 0; font-weight: bold; }
+
+    /* Student table badges */
+    .badge-p { color: #3fb950; font-weight: bold; font-size: 12px; }
+    .badge-l { color: #d29922; font-weight: bold; font-size: 12px; }
+    .badge-a { color: #f85149; font-weight: bold; font-size: 12px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -99,29 +90,15 @@ if "data" not in st.session_state:
 
 data = st.session_state.data
 
-# Query parameters for updating attendance via buttons seamlessly
-query_params = st.query_params
-if "action" in query_params and "student" in query_params and "date" in query_params:
-    act = query_params["action"]
-    stud = query_params["student"]
-    dt = query_params["date"]
-    if dt in data["days"] and stud in STUDENTS:
-        if act == "P":
-            data["days"][dt][stud] = "PRESENT"
-        elif act == "L":
-            data["days"][dt][stud] = "LEAVE"
-        elif act == "A":
-            data["days"][dt][stud] = "ABSENT"
-        save_data(data)
-        st.query_params.clear()
-        st.rerun()
+# Sidebar Menu (Hamburger Icon Style)
+with st.sidebar:
+    st.markdown("### ☰ Menu")
+    nav_mode = st.radio(
+        "Navigation", ["Dashboard", "History", "Total Fine", "Collect Fee"], label_visibility="collapsed"
+    )
 
+# App Header (Moved up closer)
 st.markdown("### 📚 Attendance E-Khata")
-
-# Navigation Tabs
-nav_mode = st.radio(
-    "Menu", ["Dashboard", "History", "Total Fine", "Collect Fee"], horizontal=True
-)
 st.markdown("---")
 
 # Date Selection
@@ -162,24 +139,24 @@ if nav_mode == "Dashboard":
     net_fines = get_current_fines()
     total_fine_amount = sum(net_fines.values())
 
-    # Summary Cards Layout
+    # Compact Summary Cards with smaller text values
     st.markdown(f"""
         <div class="card-container">
             <div class="stat-card c-present">
                 <small>Present</small>
-                <h3>{present}</h3>
+                <h4>{present}</h4>
             </div>
             <div class="stat-card c-leave">
                 <small>Leave</small>
-                <h3>{leave}</h3>
+                <h4>{leave}</h4>
             </div>
             <div class="stat-card c-absent">
                 <small>Absent</small>
-                <h3>{absent}</h3>
+                <h4>{absent}</h4>
             </div>
             <div class="stat-card c-fee">
                 <small>Total Due</small>
-                <h3>{total_fine_amount}Tk</h3>
+                <h4>{total_fine_amount}Tk</h4>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -187,7 +164,7 @@ if nav_mode == "Dashboard":
     st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
     st.markdown("---")
 
-    # Render clean inline table with Streamlit buttons for each row
+    # Student list rows
     for student in STUDENTS:
         current_status = day_data.get(student, "")
         status_display = "-"
@@ -198,11 +175,10 @@ if nav_mode == "Dashboard":
         elif current_status == "ABSENT":
             status_display = '<span class="badge-a">ABSENT</span>'
 
-        cols = st.columns([2.5, 2.5, 3])
+        cols = st.columns([2.2, 2.3, 3.5])
         cols[0].markdown(f"**{student}**", unsafe_allow_html=True)
         cols[1].markdown(status_display, unsafe_allow_html=True)
         
-        # Action buttons packed neatly in columns
         b_cols = cols[2].columns(3)
         if b_cols[0].button("P", key=f"btn_p_{student}"):
             data["days"][current_date][student] = "PRESENT"
