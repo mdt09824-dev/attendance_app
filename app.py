@@ -11,54 +11,54 @@ STUDENTS = [
 ]
 
 FINE_PER_ABSENT = 20
-
-INITIAL_FINE = {
-    "Tabassum": 20,
-    "Runa": 20
-}
-
+INITIAL_FINE = {"Tabassum": 20, "Runa": 20}
 DATA_FILE = "attendance_data.json"
 
-# Page Configuration
-st.set_page_config(
-    page_title="Attendance E-Khata",
-    page_icon="📚",
-    layout="centered"
-)
+st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Custom CSS to make it look like a modern mobile app UI
+# Advanced Custom CSS to style everything like a sleek mobile app UI
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
+    .stApp { background-color: #0e1117; color: #ffffff; }
     .card-container {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         margin-bottom: 15px;
-        overflow-x: auto;
     }
     .stat-card {
         flex: 1;
-        padding: 12px;
-        border-radius: 12px;
+        padding: 10px;
+        border-radius: 10px;
         text-align: center;
         color: white;
-        min-width: 75px;
     }
-    .card-present { background-color: #1e3a2f; border: 1px solid #28a745; }
-    .card-leave { background-color: #3a321e; border: 1px solid #ffc107; }
-    .card-absent { background-color: #3a1e1e; border: 1px solid #dc3545; }
-    .card-fee { background-color: #1e2a3a; border: 1px solid #007bff; }
-    
-    .student-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: #161b22;
-        padding: 10px 15px;
+    .c-present { background-color: #1b3b22; border: 1px solid #28a745; }
+    .c-leave { background-color: #3b331b; border: 1px solid #ffc107; }
+    .c-absent { background-color: #3b1b1b; border: 1px solid #dc3545; }
+    .c-fee { background-color: #1b283b; border: 1px solid #007bff; }
+
+    /* Custom Table Layout for Students */
+    .styled-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        background-color: #161b22;
         border-radius: 8px;
-        margin-bottom: 8px;
-        border: 1px solid #30363d;
+        overflow: hidden;
     }
+    .styled-table th, .styled-table td {
+        padding: 10px 8px;
+        text-align: left;
+        border-bottom: 1px solid #30363d;
+        font-size: 14px;
+    }
+    .styled-table th {
+        background-color: #21262d;
+        color: #8b949e;
+    }
+    .badge-p { color: #3fb950; font-weight: bold; }
+    .badge-l { color: #d29922; font-weight: bold; }
+    .badge-a { color: #f85149; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -76,11 +76,7 @@ def blank_day():
 
 def load_data():
     if not os.path.exists(DATA_FILE):
-        return {
-            "days": {},
-            "initial_fine": INITIAL_FINE.copy(),
-            "payments": {}
-        }
+        return {"days": {}, "initial_fine": INITIAL_FINE.copy(), "payments": {}}
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -92,11 +88,7 @@ def load_data():
                 day.setdefault(name, "")
         return data
     except:
-        return {
-            "days": {},
-            "initial_fine": INITIAL_FINE.copy(),
-            "payments": {}
-        }
+        return {"days": {}, "initial_fine": INITIAL_FINE.copy(), "payments": {}}
 
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
@@ -107,10 +99,26 @@ if "data" not in st.session_state:
 
 data = st.session_state.data
 
-# App Header
+# Query parameters for updating attendance via buttons seamlessly
+query_params = st.query_params
+if "action" in query_params and "student" in query_params and "date" in query_params:
+    act = query_params["action"]
+    stud = query_params["student"]
+    dt = query_params["date"]
+    if dt in data["days"] and stud in STUDENTS:
+        if act == "P":
+            data["days"][dt][stud] = "PRESENT"
+        elif act == "L":
+            data["days"][dt][stud] = "LEAVE"
+        elif act == "A":
+            data["days"][dt][stud] = "ABSENT"
+        save_data(data)
+        st.query_params.clear()
+        st.rerun()
+
 st.markdown("### 📚 Attendance E-Khata")
 
-# Simulated Bottom/Top Navigation Tabs
+# Navigation Tabs
 nav_mode = st.radio(
     "Menu", ["Dashboard", "History", "Total Fine", "Collect Fee"], horizontal=True
 )
@@ -154,66 +162,57 @@ if nav_mode == "Dashboard":
     net_fines = get_current_fines()
     total_fine_amount = sum(net_fines.values())
 
-    # Modern Summary Cards Layout matching user request
+    # Summary Cards Layout
     st.markdown(f"""
         <div class="card-container">
-            <div class="stat-card card-present">
+            <div class="stat-card c-present">
                 <small>Present</small>
-                <h2>{present}</h2>
+                <h3>{present}</h3>
             </div>
-            <div class="stat-card card-leave">
+            <div class="stat-card c-leave">
                 <small>Leave</small>
-                <h2>{leave}</h2>
+                <h3>{leave}</h3>
             </div>
-            <div class="stat-card card-absent">
+            <div class="stat-card c-absent">
                 <small>Absent</small>
-                <h2>{absent}</h2>
+                <h3>{absent}</h3>
             </div>
-            <div class="stat-card card-fee">
+            <div class="stat-card c-fee">
                 <small>Total Due</small>
-                <h2>{total_fine_amount}Tk</h2>
+                <h3>{total_fine_amount}Tk</h3>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown(f"**Date:** {format_date(current_date)} | **Not Set:** {not_set}")
+    st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
     st.markdown("---")
 
-    # Student List Headers
-    h1, h2, h3 = st.columns([2, 2, 3])
-    h1.markdown("**Name**")
-    h2.markdown("**Status**")
-    h3.markdown("**Action (P / L / A)**")
-
-    # Student Rows
+    # Render clean inline table with Streamlit buttons for each row
     for student in STUDENTS:
-        col_name, col_status, col_action = st.columns([2, 2, 3])
-
-        col_name.write(student)
         current_status = day_data.get(student, "")
-        
+        status_display = "-"
         if current_status == "PRESENT":
-            col_status.markdown("🟢 **PRESENT**")
+            status_display = '<span class="badge-p">PRESENT</span>'
         elif current_status == "LEAVE":
-            col_status.markdown("🟡 **LEAVE**")
+            status_display = '<span class="badge-l">LEAVE</span>'
         elif current_status == "ABSENT":
-            col_status.markdown("🔴 **ABSENT**")
-        else:
-            col_status.markdown("⚪ -")
+            status_display = '<span class="badge-a">ABSENT</span>'
 
-        # Action Buttons side by side
-        b1, b2, b3 = col_action.columns(3)
-        if b1.button("P", key=f"p_{student}"):
+        cols = st.columns([2.5, 2.5, 3])
+        cols[0].markdown(f"**{student}**", unsafe_allow_html=True)
+        cols[1].markdown(status_display, unsafe_allow_html=True)
+        
+        # Action buttons packed neatly in columns
+        b_cols = cols[2].columns(3)
+        if b_cols[0].button("P", key=f"btn_p_{student}"):
             data["days"][current_date][student] = "PRESENT"
             save_data(data)
             st.rerun()
-
-        if b2.button("L", key=f"l_{student}"):
+        if b_cols[1].button("L", key=f"btn_l_{student}"):
             data["days"][current_date][student] = "LEAVE"
             save_data(data)
             st.rerun()
-
-        if b3.button("A", key=f"a_{student}"):
+        if b_cols[2].button("A", key=f"btn_a_{student}"):
             data["days"][current_date][student] = "ABSENT"
             save_data(data)
             st.rerun()
