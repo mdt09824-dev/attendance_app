@@ -46,13 +46,15 @@ def load_data():
     if not os.path.exists(DATA_FILE):
         return {
             "days": {},
-            "initial_fine": INITIAL_FINE.copy()
+            "initial_fine": INITIAL_FINE.copy(),
+            "payments": {}  # Track paid amounts per student
         }
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         data.setdefault("days", {})
         data.setdefault("initial_fine", INITIAL_FINE.copy())
+        data.setdefault("payments", {})
         for day in data["days"].values():
             for name in STUDENTS:
                 day.setdefault(name, "")
@@ -60,7 +62,8 @@ def load_data():
     except:
         return {
             "days": {},
-            "initial_fine": INITIAL_FINE.copy()
+            "initial_fine": INITIAL_FINE.copy(),
+            "payments": {}
         }
 
 
@@ -75,13 +78,30 @@ if "data" not in st.session_state:
 
 data = st.session_state.data
 
+# Custom CSS for styling to match the modern look
+st.markdown("""
+    <style>
+    .metric-card {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+        text-align: center;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # App Header
-st.title("📚 Private Attendance E-Khata")
+st.title("📚 Attendance E-Khata")
 
-# Sidebar for Navigation & Date Selection
-st.sidebar.header("Navigation & Date")
+# Navigation selection via Radio or selectbox mimicking bottom/sidebar tabs
+nav_mode = st.radio(
+    "Navigation", ["Dashboard", "History", "Total Fine", "Collect Fee"], horizontal=True
+)
+st.divider()
 
-selected_date_obj = st.sidebar.date_input(
+# Date Selection for Attendance
+selected_date_obj = st.date_input(
     "Select Date", datetime.strptime(today_str(), "%Y-%m-%d")
 )
 current_date = selected_date_obj.strftime("%Y-%m-%d")
@@ -91,15 +111,25 @@ if current_date not in data["days"]:
     data["days"][current_date]["Nirob"] = "LEAVE"
     save_data(data)
 
-# Sidebar view options
-view_mode = st.sidebar.radio(
-    "Views", ["Daily Attendance", "Total Fine", "History"]
-)
+# Helper function to calculate current fines minus payments
+def get_current_fines():
+    fines = {s: int(data["initial_fine"].get(s, 0)) for s in STUDENTS}
+    for d_item in data["days"].values():
+        for student, status in d_item.items():
+            if status == "ABSENT":
+                fines[student] = fines.get(student, 0) + FINE_PER_ABSENT
+    
+    # Subtract paid amounts
+    payments = data.get("payments", {})
+    net_fines = {}
+    for s in STUDENTS:
+        total_due = fines.get(s, 0)
+        paid = payments.get(s, 0)
+        net_fines[s] = max(0, total_due - paid)
+    return net_fines
 
-# ----------------- 1. DAILY ATTENDANCE VIEW -----------------
-if view_mode == "Daily Attendance":
-    st.subheader(f"Date: {format_date(current_date)}")
-
+# ----------------- 1. DASHBOARD VIEW -----------------
+if nav_mode == "Dashboard":
     day_data = data["days"].setdefault(current_date, blank_day())
 
     # Summary calculation
@@ -108,73 +138,59 @@ if view_mode == "Daily Attendance":
     absent = sum(day_data.get(s) == "ABSENT" for s in STUDENTS)
     not_set = len(STUDENTS) - present - leave - absent
 
-    # Calculate current total fines
-    fines = {s: int(data["initial_fine"].get(s, 0)) for s in STUDENTS}
-    for d_item in data["days"].values():
-        for student, status in d_item.items():
-            if status == "ABSENT":
-                fines[student] = fines.get(student, 0) + 20
-    total_fine_amount = sum(fines.values())
+    net_fines = get_current_fines()
+    total_fine_amount = sum(net_fines.values())
 
-    st.metric(
-        label="Summary",
-        value=f"Present: {present} | Leave: {leave} | Absent: {absent} | Not Set: {not_set}",
-        delta=f"Total Fine: {total_fine_amount} Taka",
-    )
+    # Top Metric Summary Cards layout
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Present", f"{present}", "Students")
+    col2.metric("Leave", f"{leave}", "Students")
+    col3.metric("Absent", f"{absent}", "Students")
+    col4.metric("Total Due", f"{total_fine_amount} Tk")
+
     st.divider()
 
     # Table Header
-    col1, col2, col3 = st.columns([2, 2, 3])
-    col1.markdown("**Name**")
-    col2.markdown("**Current Status**")
-    col3.markdown("**Action**")
+    c1, c2, c3 = st.columns([2, 2, 3])
+    c1.markdown("**Name**")
+    c2.markdown("**Status**")
+    c3.markdown("**Action (P / L / A)**")
 
-    # Student Rows
+    # Student Rows with Action Buttons
     for student in STUDENTS:
-        c1, c2, c3 = st.columns([2, 2, 3])
+        col_name, col_status, col_action = st.columns([2, 2, 3])
 
-        c1.write(student)
+        col_name.write(student)
         current_status = day_data.get(student, "")
-        c2.write(current_status if current_status else "-")
+        
+        if current_status == "PRESENT":
+            col_status.success("PRESENT")
+        elif current_status == "LEAVE":
+            col_status.warning("LEAVE")
+        elif current_status == "ABSENT":
+            col_status.error("ABSENT")
+        else:
+            col_status.write("-")
 
-        # Action Buttons using columns inside c3
-# Radio buttons or selectbox can also be used, but buttons feel like app controls
-        btn_col1, btn_col2, btn_col3 = c3.columns(3)
-
-        if btn_col1.button("P", key=f"p_{student}"):
+        # Action Buttons inside columns
+        b1, b2, b3 = col_action.columns(3)
+        if b1.button("P", key=f"p_{student}"):
             data["days"][current_date][student] = "PRESENT"
             save_data(data)
             st.rerun()
 
-        if btn_col2.button("L", key=f"l_{student}"):
+        if b2.button("L", key=f"l_{student}"):
             data["days"][current_date][student] = "LEAVE"
             save_data(data)
             st.rerun()
 
-        if btn_col3.button("A", key=f"a_{student}"):
+        if b3.button("A", key=f"a_{student}"):
             data["days"][current_date][student] = "ABSENT"
             save_data(data)
             st.rerun()
 
-# ----------------- 2. TOTAL FINE VIEW -----------------
-elif view_mode == "Total Fine":
-    st.subheader("💰 Total Fine List")
-
-    fines = {s: int(data["initial_fine"].get(s, 0)) for s in STUDENTS}
-    for d_item in data["days"].values():
-        for student, status in d_item.items():
-            if status == "ABSENT":
-                fines[student] = fines.get(student, 0) + 20
-
-    # Display in a clean table format
-    fine_data = [
-        {"Student Name": s, "Total Fine": f"{fines.get(s, 0)} Taka"}
-        for s in STUDENTS
-    ]
-    st.table(fine_data)
-
-# ----------------- 3. HISTORY VIEW -----------------
-elif view_mode == "History":
+# ----------------- 2. HISTORY VIEW -----------------
+elif nav_mode == "History":
     st.subheader("📅 Attendance History")
 
     sorted_dates = sorted(data["days"].keys(), reverse=True)
@@ -188,12 +204,47 @@ elif view_mode == "History":
             l = sum(day.get(s) == "LEAVE" for s in STUDENTS)
             a = sum(day.get(s) == "ABSENT" for s in STUDENTS)
 
-            with st.expander(
-                f"{format_date(d)}  —  Present: {p} | Leave: {l} | Absent: {a}"
-            ):
-                # Show details of that specific day
-                history_list = [
-                    {"Student": s, "Status": day.get(s, "-") or "-"}
-                    for s in STUDENTS
-                ]
+            with st.expander(f"{format_date(d)}  —  Present: {p} | Leave: {l} | Absent: {a}"):
+                history_list = [{"Student": s, "Status": day.get(s, "-") or "-"} for s in STUDENTS]
                 st.table(history_list)
+
+# ----------------- 3. TOTAL FINE VIEW -----------------
+elif nav_mode == "Total Fine":
+    st.subheader("💰 Total Due / Fine List")
+
+    net_fines = get_current_fines()
+    payments = data.get("payments", {})
+
+    fine_data = [
+        {
+            "Student Name": s, 
+            "Paid": f"{payments.get(s, 0)} Tk", 
+            "Remaining Due": f"{net_fines.get(s, 0)} Tk"
+        }
+        for s in STUDENTS
+    ]
+    st.table(fine_data)
+
+# ----------------- 4. COLLECT FEE VIEW (New Option) -----------------
+elif nav_mode == "Collect Fee":
+    st.subheader("💵 Collect Fine / Clear Dues")
+    st.write("বকেয়া টাকা পরিশোধ করলে এখানে এন্ট্রি দিন, যা মোট বকেয়া থেকে স্বয়ংক্রিয়ভাবে মাইনাস হয়ে যাবে।")
+
+    net_fines = get_current_fines()
+
+    selected_student = st.selectbox("Select Student", STUDENTS)
+    current_due = net_fines.get(selected_student, 0)
+    
+    st.info(f"Current Due for {selected_student}: **{current_due} Taka**")
+
+    pay_amount = st.number_input("Enter Amount to Pay (Taka)", min_value=0, step=10)
+
+    if st.button("Confirm Payment"):
+        if pay_amount > 0:
+            current_paid = data.setdefault("payments", {}).get(selected_student, 0)
+            data["payments"][selected_student] = current_paid + pay_amount
+            save_data(data)
+            st.success(f"Successfully collected {pay_amount} Taka from {selected_student}!")
+            st.rerun()
+        else:
+            st.warning("Please enter a valid amount greater than 0.")
