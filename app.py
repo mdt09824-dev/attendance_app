@@ -1,25 +1,7 @@
 import os
 import json
-from datetime import datetime, date
-
+from datetime import datetime
 import streamlit as st
-
-
-# =========================================================
-# APP CONFIG
-# =========================================================
-
-st.set_page_config(
-    page_title="Attendance E-Khata",
-    page_icon="📚",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-
-
-# =========================================================
-# DATA
-# =========================================================
 
 STUDENTS = [
     "Rounak", "Nirob", "Jahidul", "Abir", "Tafin",
@@ -29,1016 +11,264 @@ STUDENTS = [
 ]
 
 FINE_PER_ABSENT = 20
-
-INITIAL_FINE = {
-    "Tabassum": 20,
-    "Runa": 20
-}
-
+INITIAL_FINE = {"Tabassum": 20, "Runa": 20}
 DATA_FILE = "attendance_data.json"
 
+st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# =========================================================
-# MOBILE CSS
-# =========================================================
-
-st.markdown(
-    """
+# Advanced Custom CSS to style everything like a sleek mobile app UI
+st.markdown("""
     <style>
-
-    /* ---------- PAGE ---------- */
-
-    .stApp {
-        background: #f6f8fc;
+    .stApp { background-color: #0e1117; color: #ffffff; }
+    .card-container {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 15px;
     }
-
-    .block-container {
-        max-width: 480px !important;
-        padding-top: 0.5rem !important;
-        padding-left: 12px !important;
-        padding-right: 12px !important;
-        padding-bottom: 90px !important;
-    }
-
-    header {
-        visibility: hidden;
-    }
-
-    #MainMenu {
-        visibility: hidden;
-    }
-
-    footer {
-        visibility: hidden;
-    }
-
-
-    /* ---------- GLOBAL ---------- */
-
-    * {
-        box-sizing: border-box;
-    }
-
-    h1, h2, h3, h4, p {
-        margin-top: 0 !important;
-    }
-
-
-    /* ---------- TOP HEADER ---------- */
-
-    .top-header {
-        margin: -8px -12px 15px -12px;
-        padding: 18px 18px;
-        border-radius: 0 0 24px 24px;
-        background: linear-gradient(
-            135deg,
-            #087af5,
-            #3856e8,
-            #7730ed
-        );
+    .stat-card {
+        flex: 1;
+        padding: 10px;
+        border-radius: 10px;
+        text-align: center;
         color: white;
-        box-shadow: 0 8px 20px rgba(59, 79, 225, 0.25);
     }
+    .c-present { background-color: #1b3b22; border: 1px solid #28a745; }
+    .c-leave { background-color: #3b331b; border: 1px solid #ffc107; }
+    .c-absent { background-color: #3b1b1b; border: 1px solid #dc3545; }
+    .c-fee { background-color: #1b283b; border: 1px solid #007bff; }
 
-    .top-title {
-        font-size: 23px;
-        font-weight: 700;
-        margin: 0;
-    }
-
-    .top-subtitle {
-        font-size: 12px;
-        margin-top: 4px;
-        opacity: 0.9;
-    }
-
-
-    /* ---------- BUTTONS ---------- */
-
-    .stButton > button {
+    /* Custom Table Layout for Students */
+    .styled-table {
         width: 100%;
-        min-height: 38px;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        border: 1px solid #d8deea !important;
-        background: white !important;
-        color: #2b354d !important;
+        border-collapse: collapse;
+        margin-top: 10px;
+        background-color: #161b22;
+        border-radius: 8px;
+        overflow: hidden;
     }
-
-    .stButton > button:hover {
-        border-color: #4773ed !important;
-        color: #275fe0 !important;
-    }
-
-
-    /* ---------- DATE INPUT ---------- */
-
-    div[data-baseweb="input"] {
-        border-radius: 11px !important;
-    }
-
-    div[data-baseweb="select"] {
-        border-radius: 11px !important;
-    }
-
-
-    /* ---------- TABS / NAV ---------- */
-
-    div[role="radiogroup"] {
-        gap: 6px !important;
-    }
-
-    div[role="radiogroup"] label {
-        background: white !important;
-        border: 1px solid #e0e5ef !important;
-        border-radius: 11px !important;
-        padding: 8px 10px !important;
-    }
-
-
-    /* ---------- TABLE ---------- */
-
-    .student-name {
+    .styled-table th, .styled-table td {
+        padding: 10px 8px;
+        text-align: left;
+        border-bottom: 1px solid #30363d;
         font-size: 14px;
-        font-weight: 600;
-        color: #273149;
     }
-
-    .small-text {
-        font-size: 12px;
-        color: #717a8d;
+    .styled-table th {
+        background-color: #21262d;
+        color: #8b949e;
     }
-
-
-    /* ---------- FOOTER SPACE ---------- */
-
-    .bottom-space {
-        height: 65px;
-    }
-
-
-    /* ---------- MOBILE ---------- */
-
-    @media (max-width: 500px) {
-
-        .top-title {
-            font-size: 21px;
-        }
-
-        .block-container {
-            padding-left: 10px !important;
-            padding-right: 10px !important;
-        }
-
-    }
-
+    .badge-p { color: #3fb950; font-weight: bold; }
+    .badge-l { color: #d29922; font-weight: bold; }
+    .badge-a { color: #f85149; font-weight: bold; }
     </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# =========================================================
-# FUNCTIONS
-# =========================================================
+""", unsafe_allow_html=True)
 
 def today_str():
     return datetime.now().strftime("%Y-%m-%d")
 
-
-def format_date(value):
+def format_date(d):
     try:
-        return datetime.strptime(
-            value,
-            "%Y-%m-%d"
-        ).strftime("%d-%m-%Y")
-    except Exception:
-        return value
-
+        return datetime.strptime(d, "%Y-%m-%d").strftime("%d-%m-%Y")
+    except:
+        return d
 
 def blank_day():
-    return {
-        student: ""
-        for student in STUDENTS
-    }
-
-
-def default_data():
-    return {
-        "days": {},
-        "initial_fine": INITIAL_FINE.copy(),
-        "payments": {}
-    }
-
+    return {name: "" for name in STUDENTS}
 
 def load_data():
-
     if not os.path.exists(DATA_FILE):
-        return default_data()
-
+        return {"days": {}, "initial_fine": INITIAL_FINE.copy(), "payments": {}}
     try:
-
-        with open(
-            DATA_FILE,
-            "r",
-            encoding="utf-8"
-        ) as file:
-
-            data = json.load(file)
-
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
         data.setdefault("days", {})
-        data.setdefault(
-            "initial_fine",
-            INITIAL_FINE.copy()
-        )
-        data.setdefault(
-            "payments",
-            {}
-        )
-
+        data.setdefault("initial_fine", INITIAL_FINE.copy())
+        data.setdefault("payments", {})
         for day in data["days"].values():
-
-            for student in STUDENTS:
-                day.setdefault(
-                    student,
-                    ""
-                )
-
+            for name in STUDENTS:
+                day.setdefault(name, "")
         return data
-
-    except Exception:
-
-        return default_data()
-
+    except:
+        return {"days": {}, "initial_fine": INITIAL_FINE.copy(), "payments": {}}
 
 def save_data(data):
-
-    try:
-
-        with open(
-            DATA_FILE,
-            "w",
-            encoding="utf-8"
-        ) as file:
-
-            json.dump(
-                data,
-                file,
-                ensure_ascii=False,
-                indent=2
-            )
-
-    except Exception as error:
-
-        st.error(
-            f"Data save error: {error}"
-        )
-
-
-def get_total_fines():
-
-    fines = {}
-
-    for student in STUDENTS:
-
-        fines[student] = int(
-            data["initial_fine"].get(
-                student,
-                0
-            )
-        )
-
-    for day in data["days"].values():
-
-        for student in STUDENTS:
-
-            if day.get(student) == "ABSENT":
-
-                fines[student] += FINE_PER_ABSENT
-
-    return fines
-
-
-def get_paid_amounts():
-
-    return data.get(
-        "payments",
-        {}
-    )
-
-
-def get_remaining_fines():
-
-    total_fines = get_total_fines()
-    payments = get_paid_amounts()
-
-    remaining = {}
-
-    for student in STUDENTS:
-
-        total = total_fines.get(
-            student,
-            0
-        )
-
-        paid = payments.get(
-            student,
-            0
-        )
-
-        remaining[student] = max(
-            0,
-            total - paid
-        )
-
-    return remaining
-
-
-# =========================================================
-# LOAD DATA
-# =========================================================
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 if "data" not in st.session_state:
-
     st.session_state.data = load_data()
-
 
 data = st.session_state.data
 
+# Query parameters for updating attendance via buttons seamlessly
+query_params = st.query_params
+if "action" in query_params and "student" in query_params and "date" in query_params:
+    act = query_params["action"]
+    stud = query_params["student"]
+    dt = query_params["date"]
+    if dt in data["days"] and stud in STUDENTS:
+        if act == "P":
+            data["days"][dt][stud] = "PRESENT"
+        elif act == "L":
+            data["days"][dt][stud] = "LEAVE"
+        elif act == "A":
+            data["days"][dt][stud] = "ABSENT"
+        save_data(data)
+        st.query_params.clear()
+        st.rerun()
 
-# =========================================================
-# DEFAULT TODAY
-# =========================================================
+st.markdown("### 📚 Attendance E-Khata")
 
-if today_str() not in data["days"]:
+# Navigation Tabs
+nav_mode = st.radio(
+    "Menu", ["Dashboard", "History", "Total Fine", "Collect Fee"], horizontal=True
+)
+st.markdown("---")
 
-    data["days"][today_str()] = blank_day()
+# Date Selection
+selected_date_obj = st.date_input(
+    "Select Date", datetime.strptime(today_str(), "%Y-%m-%d")
+)
+current_date = selected_date_obj.strftime("%Y-%m-%d")
 
-    # Example initial leave
-    if "Nirob" in STUDENTS:
-        data["days"][today_str()]["Nirob"] = "LEAVE"
-
+if current_date not in data["days"]:
+    data["days"][current_date] = blank_day()
+    data["days"][current_date]["Nirob"] = "LEAVE"
     save_data(data)
 
+def get_current_fines():
+    fines = {s: int(data["initial_fine"].get(s, 0)) for s in STUDENTS}
+    for d_item in data["days"].values():
+        for student, status in d_item.items():
+            if status == "ABSENT":
+                fines[student] = fines.get(student, 0) + FINE_PER_ABSENT
+    
+    payments = data.get("payments", {})
+    net_fines = {}
+    for s in STUDENTS:
+        total_due = fines.get(s, 0)
+        paid = payments.get(s, 0)
+        net_fines[s] = max(0, total_due - paid)
+    return net_fines
 
-# =========================================================
-# CURRENT PAGE
-# =========================================================
+# ----------------- 1. DASHBOARD VIEW -----------------
+if nav_mode == "Dashboard":
+    day_data = data["days"].setdefault(current_date, blank_day())
 
-if "page" not in st.session_state:
-    st.session_state.page = "Dashboard"
+    present = sum(day_data.get(s) == "PRESENT" for s in STUDENTS)
+    leave = sum(day_data.get(s) == "LEAVE" for s in STUDENTS)
+    absent = sum(day_data.get(s) == "ABSENT" for s in STUDENTS)
+    not_set = len(STUDENTS) - present - leave - absent
 
+    net_fines = get_current_fines()
+    total_fine_amount = sum(net_fines.values())
 
-# =========================================================
-# SELECTED DATE
-# =========================================================
-
-if "selected_date" not in st.session_state:
-
-    st.session_state.selected_date = (
-        datetime.strptime(
-            today_str(),
-            "%Y-%m-%d"
-        ).date()
-    )
-
-
-# =========================================================
-# HEADER
-# =========================================================
-
-st.markdown(
-    """
-    <div class="top-header">
-        <div class="top-title">
-            ☰ &nbsp; Attendance E-Khata
+    # Summary Cards Layout
+    st.markdown(f"""
+        <div class="card-container">
+            <div class="stat-card c-present">
+                <small>Present</small>
+                <h3>{present}</h3>
+            </div>
+            <div class="stat-card c-leave">
+                <small>Leave</small>
+                <h3>{leave}</h3>
+            </div>
+            <div class="stat-card c-absent">
+                <small>Absent</small>
+                <h3>{absent}</h3>
+            </div>
+            <div class="stat-card c-fee">
+                <small>Total Due</small>
+                <h3>{total_fine_amount}Tk</h3>
+            </div>
         </div>
+    """, unsafe_allow_html=True)
 
-        <div class="top-subtitle">
-            Attendance & Fee Management
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
+    st.markdown("---")
 
-
-# =========================================================
-# TOP NAVIGATION
-# =========================================================
-
-nav1, nav2, nav3, nav4 = st.columns(4)
-
-with nav1:
-
-    if st.button(
-        "🏠\nDashboard",
-        key="dashboard_nav",
-        use_container_width=True
-    ):
-        st.session_state.page = "Dashboard"
-        st.rerun()
-
-
-with nav2:
-
-    if st.button(
-        "◷\nHistory",
-        key="history_nav",
-        use_container_width=True
-    ):
-        st.session_state.page = "History"
-        st.rerun()
-
-
-with nav3:
-
-    if st.button(
-        "💳\nTotal Fine",
-        key="fine_nav",
-        use_container_width=True
-    ):
-        st.session_state.page = "Total Fine"
-        st.rerun()
-
-
-with nav4:
-
-    if st.button(
-        "•••\nMore",
-        key="more_nav",
-        use_container_width=True
-    ):
-        st.session_state.page = "Collect Fee"
-        st.rerun()
-
-
-st.write("")
-
-
-# =========================================================
-# DASHBOARD
-# =========================================================
-
-if st.session_state.page == "Dashboard":
-
-    # -----------------------------------------------------
-    # DATE
-    # -----------------------------------------------------
-
-    selected_date = st.date_input(
-        "Select Date",
-        value=st.session_state.selected_date,
-        key="date_selector"
-    )
-
-    if selected_date != st.session_state.selected_date:
-
-        st.session_state.selected_date = selected_date
-
-    current_date = (
-        st.session_state.selected_date
-        .strftime("%Y-%m-%d")
-    )
-
-
-    # Create day
-    if current_date not in data["days"]:
-
-        data["days"][current_date] = blank_day()
-        save_data(data)
-
-
-    day_data = data["days"][current_date]
-
-
-    # -----------------------------------------------------
-    # COUNTS
-    # -----------------------------------------------------
-
-    present = sum(
-        day_data.get(student) == "PRESENT"
-        for student in STUDENTS
-    )
-
-    leave = sum(
-        day_data.get(student) == "LEAVE"
-        for student in STUDENTS
-    )
-
-    absent = sum(
-        day_data.get(student) == "ABSENT"
-        for student in STUDENTS
-    )
-
-    not_set = (
-        len(STUDENTS)
-        - present
-        - leave
-        - absent
-    )
-
-
-    # -----------------------------------------------------
-    # FEE
-    # -----------------------------------------------------
-
-    total_fines = get_total_fines()
-    remaining_fines = get_remaining_fines()
-
-    total_fee = sum(
-        total_fines.values()
-    )
-
-    after_payment = sum(
-        remaining_fines.values()
-    )
-
-
-    # =====================================================
-    # DATE SUMMARY
-    # =====================================================
-
-    st.container(border=True)
-
-    st.markdown(
-        f"### 📅 {format_date(current_date)}"
-    )
-
-    c1, c2, c3, c4 = st.columns(4)
-
-    with c1:
-        st.markdown(
-            f"**🟢 Present**  \n"
-            f"### {present}"
-        )
-
-    with c2:
-        st.markdown(
-            f"**🟠 Leave**  \n"
-            f"### {leave}"
-        )
-
-    with c3:
-        st.markdown(
-            f"**🔴 Absent**  \n"
-            f"### {absent}"
-        )
-
-    with c4:
-        st.markdown(
-            f"**⚪ Not Set**  \n"
-            f"### {not_set}"
-        )
-
-
-    st.write("")
-
-
-    # =====================================================
-    # FEE SUMMARY
-    # =====================================================
-
-    st.subheader("💰 Fee Summary")
-
-    fee1, fee2 = st.columns(2)
-
-    with fee1:
-
-        st.info(
-            f"### {total_fee} Tk\n"
-            f"Total Fee"
-        )
-
-    with fee2:
-
-        if after_payment > 0:
-
-            st.success(
-                f"### {after_payment} Tk\n"
-                f"After Payment"
-            )
-
-        else:
-
-            st.success(
-                "### 0 Tk\n"
-                "All Paid"
-            )
-
-
-    # =====================================================
-    # PAYMENT BUTTON
-    # =====================================================
-
-    if st.button(
-        "💳  Collect / Pay Fee",
-        key="collect_dashboard",
-        use_container_width=True
-    ):
-
-        st.session_state.page = "Collect Fee"
-        st.rerun()
-
-
-    # =====================================================
-    # STUDENTS
-    # =====================================================
-
-    st.subheader("👥 Students")
-
-
-    for index, student in enumerate(STUDENTS):
-
-        status = day_data.get(
-            student,
-            ""
-        )
-
-        # ---------------------------------------------
-        # STATUS TEXT
-        # ---------------------------------------------
-
-        if status == "PRESENT":
-
-            status_text = "🟢 PRESENT"
-
-        elif status == "LEAVE":
-
-            status_text = "🟠 LEAVE"
-
-        elif status == "ABSENT":
-
-            status_text = "🔴 ABSENT"
-
-        else:
-
-            status_text = "⚪ NOT SET"
-
-
-        # ---------------------------------------------
-        # STUDENT NAME
-        # ---------------------------------------------
-
-        st.markdown(
-            f"**{student}**  \n"
-            f"<span style='color:#687287;font-size:12px'>"
-            f"{status_text}"
-            f"</span>",
-            unsafe_allow_html=True
-        )
-
-
-        # ---------------------------------------------
-        # ACTION BUTTONS
-        # ---------------------------------------------
-
-        b1, b2, b3 = st.columns(3)
-
-
-        with b1:
-
-            if st.button(
-                "✓ P",
-                key=f"present_{current_date}_{index}",
-                use_container_width=True
-            ):
-
-                data["days"][
-                    current_date
-                ][student] = "PRESENT"
-
-                save_data(data)
-
-                st.rerun()
-
-
-        with b2:
-
-            if st.button(
-                "👤 L",
-                key=f"leave_{current_date}_{index}",
-                use_container_width=True
-            ):
-
-                data["days"][
-                    current_date
-                ][student] = "LEAVE"
-
-                save_data(data)
-
-                st.rerun()
-
-
-        with b3:
-
-            if st.button(
-                "✕ A",
-                key=f"absent_{current_date}_{index}",
-                use_container_width=True
-            ):
-
-                data["days"][
-                    current_date
-                ][student] = "ABSENT"
-
-                save_data(data)
-
-                st.rerun()
-
-
-        st.divider()
-
-
-    # =====================================================
-    # TOTAL FINE
-    # =====================================================
-
-    st.subheader("💵 Total Fine (Now)")
-
-    if after_payment > 0:
-
-        st.warning(
-            f"Current Outstanding: **{after_payment} Tk**"
-        )
-
-    else:
-
-        st.success(
-            "All outstanding fees are paid."
-        )
-
-
-# =========================================================
-# HISTORY
-# =========================================================
-
-elif st.session_state.page == "History":
-
-    st.subheader("📅 Attendance History")
-
-    sorted_dates = sorted(
-        data["days"].keys(),
-        reverse=True
-    )
-
-    if not sorted_dates:
-
-        st.info(
-            "No attendance history found."
-        )
-
-    else:
-
-        for day_date in sorted_dates:
-
-            day = data["days"][day_date]
-
-            present = sum(
-                day.get(student) == "PRESENT"
-                for student in STUDENTS
-            )
-
-            leave = sum(
-                day.get(student) == "LEAVE"
-                for student in STUDENTS
-            )
-
-            absent = sum(
-                day.get(student) == "ABSENT"
-                for student in STUDENTS
-            )
-
-            with st.expander(
-                f"{format_date(day_date)}   "
-                f"• P {present} "
-                f"• L {leave} "
-                f"• A {absent}"
-            ):
-
-                for student in STUDENTS:
-
-                    status = day.get(
-                        student,
-                        ""
-                    )
-
-                    if status == "PRESENT":
-                        icon = "🟢"
-
-                    elif status == "LEAVE":
-                        icon = "🟠"
-
-                    elif status == "ABSENT":
-                        icon = "🔴"
-
-                    else:
-                        icon = "⚪"
-
-                    st.write(
-                        f"{icon} **{student}** — "
-                        f"{status or 'NOT SET'}"
-                    )
-
-
-# =========================================================
-# TOTAL FINE
-# =========================================================
-
-elif st.session_state.page == "Total Fine":
-
-    st.subheader("💳 Total Fine")
-
-    total_fines = get_total_fines()
-    remaining_fines = get_remaining_fines()
-    payments = get_paid_amounts()
-
-
-    # Overall summary
-    total = sum(
-        total_fines.values()
-    )
-
-    paid = sum(
-        payments.get(
-            student,
-            0
-        )
-        for student in STUDENTS
-    )
-
-    remaining = sum(
-        remaining_fines.values()
-    )
-
-
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        st.metric(
-            "Total",
-            f"{total} Tk"
-        )
-
-    with c2:
-        st.metric(
-            "Paid",
-            f"{paid} Tk"
-        )
-
-    with c3:
-        st.metric(
-            "Due",
-            f"{remaining} Tk"
-        )
-
-
-    st.write("")
-
-
+    # Render clean inline table with Streamlit buttons for each row
     for student in STUDENTS:
+        current_status = day_data.get(student, "")
+        status_display = "-"
+        if current_status == "PRESENT":
+            status_display = '<span class="badge-p">PRESENT</span>'
+        elif current_status == "LEAVE":
+            status_display = '<span class="badge-l">LEAVE</span>'
+        elif current_status == "ABSENT":
+            status_display = '<span class="badge-a">ABSENT</span>'
 
-        total_student = total_fines.get(
-            student,
-            0
-        )
-
-        paid_student = payments.get(
-            student,
-            0
-        )
-
-        due_student = remaining_fines.get(
-            student,
-            0
-        )
-
-        with st.container(border=True):
-
-            st.markdown(
-                f"### 👤 {student}"
-            )
-
-            a, b, c = st.columns(3)
-
-            with a:
-                st.write(
-                    f"Total\n"
-                    f"**{total_student} Tk**"
-                )
-
-            with b:
-                st.write(
-                    f"Paid\n"
-                    f"**{paid_student} Tk**"
-                )
-
-            with c:
-                st.write(
-                    f"Due\n"
-                    f"**{due_student} Tk**"
-                )
-
-
-# =========================================================
-# COLLECT FEE
-# =========================================================
-
-elif st.session_state.page == "Collect Fee":
-
-    st.subheader("💵 Collect / Pay Fee")
-
-    st.info(
-        "কেউ বকেয়া টাকা পরিশোধ করলে "
-        "সেই টাকা মোট বকেয়া থেকে "
-        "স্বয়ংক্রিয়ভাবে কমে যাবে।"
-    )
-
-
-    student = st.selectbox(
-        "Select Student",
-        STUDENTS
-    )
-
-
-    remaining = get_remaining_fines()
-
-    current_due = remaining.get(
-        student,
-        0
-    )
-
-
-    st.metric(
-        "Current Due",
-        f"{current_due} Tk"
-    )
-
-
-    amount = st.number_input(
-        "Payment Amount",
-        min_value=0,
-        max_value=max(
-            current_due,
-            0
-        ),
-        value=0,
-        step=10
-    )
-
-
-    if st.button(
-        "💳 Confirm Payment",
-        use_container_width=True
-    ):
-
-        if current_due <= 0:
-
-            st.success(
-                f"{student}-এর কোনো বকেয়া নেই।"
-            )
-
-        elif amount <= 0:
-
-            st.warning(
-                "Payment amount দিন।"
-            )
-
-        else:
-
-            data.setdefault(
-                "payments",
-                {}
-            )
-
-            old_payment = data[
-                "payments"
-            ].get(
-                student,
-                0
-            )
-
-            data["payments"][
-                student
-            ] = old_payment + amount
-
+        cols = st.columns([2.5, 2.5, 3])
+        cols[0].markdown(f"**{student}**", unsafe_allow_html=True)
+        cols[1].markdown(status_display, unsafe_allow_html=True)
+        
+        # Action buttons packed neatly in columns
+        b_cols = cols[2].columns(3)
+        if b_cols[0].button("P", key=f"btn_p_{student}"):
+            data["days"][current_date][student] = "PRESENT"
             save_data(data)
-
-            st.success(
-                f"{student}-এর কাছ থেকে "
-                f"{amount} Tk নেওয়া হয়েছে।"
-            )
-
+            st.rerun()
+        if b_cols[1].button("L", key=f"btn_l_{student}"):
+            data["days"][current_date][student] = "LEAVE"
+            save_data(data)
+            st.rerun()
+        if b_cols[2].button("A", key=f"btn_a_{student}"):
+            data["days"][current_date][student] = "ABSENT"
+            save_data(data)
             st.rerun()
 
+# ----------------- 2. HISTORY VIEW -----------------
+elif nav_mode == "History":
+    st.subheader("📅 Attendance History")
+    sorted_dates = sorted(data["days"].keys(), reverse=True)
 
-# =========================================================
-# BOTTOM INFO
-# =========================================================
+    if not sorted_dates:
+        st.info("No attendance history found yet.")
+    else:
+        for d in sorted_dates:
+            day = data["days"][d]
+            p = sum(day.get(s) == "PRESENT" for s in STUDENTS)
+            l = sum(day.get(s) == "LEAVE" for s in STUDENTS)
+            a = sum(day.get(s) == "ABSENT" for s in STUDENTS)
 
-st.write("")
-st.write("")
+            with st.expander(f"{format_date(d)}  —  Present: {p} | Leave: {l} | Absent: {a}"):
+                history_list = [{"Student": s, "Status": day.get(s, "-") or "-"} for s in STUDENTS]
+                st.table(history_list)
 
-st.caption(
-    "Attendance E-Khata • Mobile Web App"
-    )
+# ----------------- 3. TOTAL FINE VIEW -----------------
+elif nav_mode == "Total Fine":
+    st.subheader("💰 Total Due / Fine List")
+    net_fines = get_current_fines()
+    payments = data.get("payments", {})
+
+    fine_data = [
+        {
+            "Student Name": s, 
+            "Paid": f"{payments.get(s, 0)} Tk", 
+            "Remaining Due": f"{net_fines.get(s, 0)} Tk"
+        }
+        for s in STUDENTS
+    ]
+    st.table(fine_data)
+
+# ----------------- 4. COLLECT FEE VIEW -----------------
+elif nav_mode == "Collect Fee":
+    st.subheader("💵 Collect Fine / Clear Dues")
+    st.write("বকেয়া টাকা পরিশোধ করলে এখানে এন্ট্রি দিন, যা মোট বকেয়া থেকে স্বয়ংক্রিয়ভাবে মাইনাস হয়ে যাবে।")
+
+    net_fines = get_current_fines()
+    selected_student = st.selectbox("Select Student", STUDENTS)
+    current_due = net_fines.get(selected_student, 0)
+    
+    st.info(f"Current Due for {selected_student}: **{current_due} Taka**")
+    pay_amount = st.number_input("Enter Amount to Pay (Taka)", min_value=0, step=10)
+
+    if st.button("Confirm Payment"):
+        if pay_amount > 0:
+            current_paid = data.setdefault("payments", {}).get(selected_student, 0)
+            data["payments"][selected_student] = current_paid + pay_amount
+            save_data(data)
+            st.success(f"Successfully collected {pay_amount} Taka from {selected_student}!")
+            st.rerun()
+        else:
+            st.warning("Please enter a valid amount greater than 0.")
