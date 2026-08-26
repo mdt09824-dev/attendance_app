@@ -16,11 +16,18 @@ DATA_FILE = "attendance_data.json"
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Custom CSS for Light Theme and precise horizontal student-row alignment matching your design
+# Custom CSS for Light Theme, proper title spacing, and wide explicit action buttons
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; color: #24292e; }
-    .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
+    
+    /* Push title down slightly */
+    .app-header {
+        margin-top: 15px;
+        margin-bottom: 10px;
+        font-size: 24px;
+        font-weight: bold;
+    }
 
     /* Compact Summary Cards */
     .card-container {
@@ -50,7 +57,7 @@ st.markdown("""
         border: 1px solid #d0d7de;
         border-radius: 8px;
         padding: 8px 10px;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
     }
 
     /* Status Badges */
@@ -58,6 +65,15 @@ st.markdown("""
     .badge-leave { background-color: #fff8c5; color: #9a6700; border: 1px solid #fb8532; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
     .badge-absent { background-color: #ffebe9; color: #cf222e; border: 1px solid #cf222e; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
     .badge-none { background-color: #eaeef2; color: #57606a; padding: 3px 8px; border-radius: 5px; font-size: 11px; }
+
+    /* Custom Styling for Wide Action Buttons */
+    .stButton button {
+        width: 100%;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 6px 0px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -105,8 +121,8 @@ with st.sidebar:
         "Navigation", ["Dashboard", "History", "Total Fine", "Collect Fee"], label_visibility="collapsed"
     )
 
-# App Header
-st.markdown("### 📚 Attendance E-Khata")
+# App Header (Positioned slightly lower as requested)
+st.markdown('<div class="app-header">📚 Attendance E-Khata</div>', unsafe_allow_html=True)
 st.markdown("---")
 
 # Date Selection
@@ -172,7 +188,7 @@ if nav_mode == "Dashboard":
     st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
     st.markdown("---")
 
-    # Render each student row compactly with name & status side by side, and buttons right below
+    # Render each student row with full action button texts stretching across rows
     for student in STUDENTS:
         current_status = day_data.get(student, "")
         
@@ -192,27 +208,28 @@ if nav_mode == "Dashboard":
         with st.container():
             st.markdown(f"""
                 <div class="student-card-box">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 14px; font-weight: 600;">👤 {student}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 14px; font-weight: 600; color: #24292e;">👤 {student}</span>
                         <span class="{status_cls}">{status_text}</span>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            # Action buttons in a neat row right below the name card
+            # Full-width distinct buttons extending up to the blue arrow limit
             b_cols = st.columns(3)
-            if b_cols[0].button("✔️ P", key=f"btn_p_{student}"):
+            if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
                 data["days"][current_date][student] = "PRESENT"
                 save_data(data)
                 st.rerun()
-            if b_cols[1].button("👤 L", key=f"btn_l_{student}"):
+            if b_cols[1].button("👤 LEAVE", key=f"btn_l_{student}"):
                 data["days"][current_date][student] = "LEAVE"
                 save_data(data)
                 st.rerun()
-            if b_cols[2].button("❌ A", key=f"btn_a_{student}"):
+            if b_cols[2].button("❌ ABSENT", key=f"btn_a_{student}"):
                 data["days"][current_date][student] = "ABSENT"
                 save_data(data)
                 st.rerun()
+            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
 
 # ----------------- 2. HISTORY VIEW -----------------
 elif nav_mode == "History":
