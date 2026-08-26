@@ -16,17 +16,21 @@ DATA_FILE = "attendance_data.json"
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Custom CSS for Light Theme, proper title spacing, and wide explicit action buttons
+# Custom CSS for UI styling matching your exact requirements
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; color: #24292e; }
     
-    /* Push title down slightly */
+    /* Bigger and lower title styling (Purple requirement) */
     .app-header {
-        margin-top: 15px;
-        margin-bottom: 10px;
-        font-size: 24px;
-        font-weight: bold;
+        margin-top: 25px;
+        margin-bottom: 15px;
+        font-size: 28px;
+        font-weight: 800;
+        text-align: center;
+        color: #1f2328;
+        border-bottom: 2px solid #eaeef2;
+        padding-bottom: 10px;
     }
 
     /* Compact Summary Cards */
@@ -66,13 +70,20 @@ st.markdown("""
     .badge-absent { background-color: #ffebe9; color: #cf222e; border: 1px solid #cf222e; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
     .badge-none { background-color: #eaeef2; color: #57606a; padding: 3px 8px; border-radius: 5px; font-size: 11px; }
 
-    /* Custom Styling for Wide Action Buttons */
+    /* Custom Red Buttons with Equal size and Yellow Text */
     .stButton button {
-        width: 100%;
+        width: 100% !important;
+        background-color: #cf222e !important;
+        color: #ffdf00 !important;
+        border: 1px solid #a40e17 !important;
         border-radius: 6px;
         font-weight: bold;
-        font-size: 13px;
+        font-size: 12px;
         padding: 6px 0px;
+    }
+    .stButton button:hover {
+        background-color: #b51f2b !important;
+        color: #fff !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -114,16 +125,15 @@ if "data" not in st.session_state:
 
 data = st.session_state.data
 
-# Sidebar Menu
+# Sidebar Menu with Top-Right Hamburger Look & Feel
 with st.sidebar:
-    st.markdown("### ☰ Menu")
+    st.markdown("### ☰ Navigation Menu")
     nav_mode = st.radio(
-        "Navigation", ["Dashboard", "History", "Total Fine", "Collect Fee"], label_visibility="collapsed"
+        "Menu", ["Dashboard", "History", "Total Fine", "Collect Fee"], label_visibility="collapsed"
     )
 
-# App Header (Positioned slightly lower as requested)
+# App Header (Bigger and Lower as requested)
 st.markdown('<div class="app-header">📚 Attendance E-Khata</div>', unsafe_allow_html=True)
-st.markdown("---")
 
 # Date Selection
 selected_date_obj = st.date_input(
@@ -188,7 +198,7 @@ if nav_mode == "Dashboard":
     st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
     st.markdown("---")
 
-    # Render each student row with full action button texts stretching across rows
+    # Render each student row with equal red buttons & yellow text
     for student in STUDENTS:
         current_status = day_data.get(student, "")
         
@@ -215,7 +225,7 @@ if nav_mode == "Dashboard":
                 </div>
             """, unsafe_allow_html=True)
             
-            # Full-width distinct buttons extending up to the blue arrow limit
+            # Equal sized action buttons with yellow text
             b_cols = st.columns(3)
             if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
                 data["days"][current_date][student] = "PRESENT"
