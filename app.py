@@ -16,11 +16,14 @@ DATA_FILE = "attendance_data.json"
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Custom CSS matching your exact requested design
+# Custom CSS for Light Theme (White Background) and Pure Flexbox Row Alignment
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; color: #ffffff; }
-    .block-container { padding-top: 1rem !important; }
+    /* Force Light Background */
+    .stApp { background-color: #ffffff; color: #24292e; }
+    
+    /* Reduce top spacing */
+    .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
 
     /* Compact Summary Cards */
     .card-container {
@@ -34,21 +37,55 @@ st.markdown("""
         border-radius: 8px;
         text-align: center;
         color: white;
-        min-height: 55px;
+        min-height: 50px;
     }
-    .c-present { background-color: #1b3b22; border: 1px solid #28a745; }
-    .c-leave { background-color: #3b331b; border: 1px solid #ffc107; }
-    .c-absent { background-color: #3b1b1b; border: 1px solid #dc3545; }
-    .c-fee { background-color: #1b283b; border: 1px solid #007bff; }
+    .c-present { background-color: #2ea043; }
+    .c-leave { background-color: #fb8532; }
+    .c-absent { background-color: #cf222e; }
+    .c-fee { background-color: #0969da; }
 
-    .stat-card small { font-size: 10px; color: #d0d7de; }
-    .stat-card h4 { font-size: 14px; margin: 0; font-weight: bold; }
+    .stat-card small { font-size: 10px; color: #ffffff; }
+    .stat-card h4 { font-size: 13px; margin: 0; font-weight: bold; color: #ffffff; }
 
-    /* Status Badges */
-    .badge-present { background-color: rgba(40, 167, 69, 0.15); color: #28a745; padding: 4px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #28a745; font-size: 12px; }
-    .badge-leave { background-color: rgba(255, 193, 7, 0.15); color: #ffc107; padding: 4px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #ffc107; font-size: 12px; }
-    .badge-absent { background-color: rgba(220, 53, 69, 0.15); color: #dc3545; padding: 4px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #dc3545; font-size: 12px; }
-    .badge-none { color: #8b949e; font-size: 12px; }
+    /* Inline Student Row Styling */
+    .student-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: #f6f8fa;
+        padding: 6px 10px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        border: 1px solid #d0d7de;
+    }
+    .student-info {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        width: 32%;
+        color: #24292e;
+    }
+    .status-badge {
+        font-size: 10px;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-weight: bold;
+        text-align: center;
+        width: 28%;
+    }
+    .badge-present { background-color: #dafbe1; color: #1a7f37; border: 1px solid #2ea043; }
+    .badge-leave { background-color: #fff8c5; color: #9a6700; border: 1px solid #fb8532; }
+    .badge-absent { background-color: #ffebe9; color: #cf222e; border: 1px solid #cf222e; }
+    .badge-none { background-color: #eaeef2; color: #57606a; }
+
+    .action-group {
+        display: flex;
+        gap: 4px;
+        width: 38%;
+        justify-content: flex-end;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -89,7 +126,24 @@ if "data" not in st.session_state:
 
 data = st.session_state.data
 
-# Sidebar Menu (Hamburger Icon Style)
+# Query parameters for updating attendance via buttons seamlessly
+query_params = st.query_params
+if "action" in query_params and "student" in query_params and "date" in query_params:
+    act = query_params["action"]
+    stud = query_params["student"]
+    dt = query_params["date"]
+    if dt in data["days"] and stud in STUDENTS:
+        if act == "P":
+            data["days"][dt][stud] = "PRESENT"
+        elif act == "L":
+            data["days"][dt][stud] = "LEAVE"
+        elif act == "A":
+            data["days"][dt][stud] = "ABSENT"
+        save_data(data)
+        st.query_params.clear()
+        st.rerun()
+
+# Sidebar Menu
 with st.sidebar:
     st.markdown("### ☰ Menu")
     nav_mode = st.radio(
@@ -163,46 +217,44 @@ if nav_mode == "Dashboard":
     st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
     st.markdown("---")
 
-    # Table Header matching 2nd image style
-    h_col1, h_col2, h_col3 = st.columns([2.2, 2.3, 3.5])
-    h_col1.markdown("**Name**")
-    h_col2.markdown("**Status**")
-    h_col3.markdown("**Action**")
-
-    # Student list rows with user icon, status box, and ✔️ P / 👤 L / ❌ A buttons side-by-side
+    # Render each student row with robust horizontal layout
     for student in STUDENTS:
         current_status = day_data.get(student, "")
         
         if current_status == "PRESENT":
-            status_html = '<span class="badge-present">PRESENT</span>'
+            status_cls = "badge-present"
+            status_text = "PRESENT"
         elif current_status == "LEAVE":
-            status_html = '<span class="badge-leave">LEAVE</span>'
+            status_cls = "badge-leave"
+            status_text = "LEAVE"
         elif current_status == "ABSENT":
-            status_html = '<span class="badge-absent">ABSENT</span>'
+            status_cls = "badge-absent"
+            status_text = "ABSENT"
         else:
-            status_html = '<span class="badge-none">-</span>'
+            status_cls = "badge-none"
+            status_text = "-"
 
-        cols = st.columns([2.2, 2.3, 3.5])
+        # Using columns to inject buttons inline cleanly
+        col_row = st.columns([4, 6])
+        with col_row[0]:
+            st.markdown(f"👤 **{student}**", unsafe_allow_html=True)
+            st.markdown(f'<div class="status-badge {status_cls}">{status_text}</div>', unsafe_allow_html=True)
         
-        # Name with User Icon (👤)
-        cols[0].markdown(f"👤 **{student}**", unsafe_allow_html=True)
-        # Status Box
-        cols[1].markdown(status_html, unsafe_allow_html=True)
-        
-        # Action Buttons side by side with symbols (✔️ P, 👤 L, ❌ A)
-        b_cols = cols[2].columns(3)
-        if b_cols[0].button("✔️ P", key=f"btn_p_{student}"):
-            data["days"][current_date][student] = "PRESENT"
-            save_data(data)
-            st.rerun()
-        if b_cols[1].button("👤 L", key=f"btn_l_{student}"):
-            data["days"][current_date][student] = "LEAVE"
-            save_data(data)
-            st.rerun()
-        if b_cols[2].button("❌ A", key=f"btn_a_{student}"):
-            data["days"][current_date][student] = "ABSENT"
-            save_data(data)
-            st.rerun()
+        with col_row[1]:
+            b_cols = st.columns(3)
+            if b_cols[0].button("✔️ P", key=f"btn_p_{student}"):
+                data["days"][current_date][student] = "PRESENT"
+                save_data(data)
+                st.rerun()
+            if b_cols[1].button("👤 L", key=f"btn_l_{student}"):
+                data["days"][current_date][student] = "LEAVE"
+                save_data(data)
+                st.rerun()
+            if b_cols[2].button("❌ A", key=f"btn_a_{student}"):
+                data["days"][current_date][student] = "ABSENT"
+                save_data(data)
+                st.rerun()
+        st.markdown("<hr style='margin:4px 0px; border-color:#eee;'>", unsafe_allow_html=True)
 
 # ----------------- 2. HISTORY VIEW -----------------
 elif nav_mode == "History":
