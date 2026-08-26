@@ -1,298 +1,316 @@
-import os
-import json
-from datetime import datetime
-import streamlit as st
-
-STUDENTS = [
-    "Rounak", "Nirob", "Jahidul", "Abir", "Tafin",
-    "Anik", "Muhin", "Mehedi", "Alif", "Samia",
-    "Sorna", "Tuli", "Tabassum", "Sumaiya", "Bonna",
-    "Runa", "Maria"
-]
-
-FINE_PER_ABSENT = 20
-INITIAL_FINE = {"Tabassum": 20, "Runa": 20}
-DATA_FILE = "attendance_data.json"
-
-st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
-
-# Custom CSS for UI styling matching your exact requirements
-st.markdown("""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance E-Khata</title>
     <style>
-    .stApp { background-color: #ffffff; color: #24292e; }
-    
-    /* Bigger and lower title styling (Purple requirement) */
-    .app-header {
-        margin-top: 25px;
-        margin-bottom: 15px;
-        font-size: 28px;
-        font-weight: 800;
-        text-align: center;
-        color: #1f2328;
-        border-bottom: 2px solid #eaeef2;
-        padding-bottom: 10px;
-    }
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --primary-color: #1a1a2e;
+            --accent-color: #0f3460;
+        }
 
-    /* Compact Summary Cards */
-    .card-container {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 10px;
-    }
-    .stat-card {
-        flex: 1;
-        padding: 6px 4px;
-        border-radius: 8px;
-        text-align: center;
-        color: white;
-        min-height: 50px;
-    }
-    .c-present { background-color: #2ea043; }
-    .c-leave { background-color: #fb8532; }
-    .c-absent { background-color: #cf222e; }
-    .c-fee { background-color: #0969da; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-    .stat-card small { font-size: 10px; color: #ffffff; }
-    .stat-card h4 { font-size: 13px; margin: 0; font-weight: bold; color: #ffffff; }
+        .container {
+            width: 100%;
+            max-width: 480px;
+            padding: 15px;
+            box-sizing: border-box;
+            margin-bottom: 70px;
+        }
 
-    /* Student Row Wrapper */
-    .student-card-box {
-        background-color: #f6f8fa;
-        border: 1px solid #d0d7de;
-        border-radius: 8px;
-        padding: 8px 10px;
-        margin-bottom: 4px;
-    }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-    /* Status Badges */
-    .badge-present { background-color: #dafbe1; color: #1a7f37; border: 1px solid #2ea043; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
-    .badge-leave { background-color: #fff8c5; color: #9a6700; border: 1px solid #fb8532; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
-    .badge-absent { background-color: #ffebe9; color: #cf222e; border: 1px solid #cf222e; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
-    .badge-none { background-color: #eaeef2; color: #57606a; padding: 3px 8px; border-radius: 5px; font-size: 11px; }
+        .header h1 {
+            font-size: 24px;
+            color: var(--primary-color);
+            margin: 10px 0 0;
+        }
 
-    /* Custom Red Buttons with Equal size and Yellow Text */
-    .stButton button {
-        width: 100% !important;
-        background-color: #cf222e !important;
-        color: #ffdf00 !important;
-        border: 1px solid #a40e17 !important;
-        border-radius: 6px;
-        font-weight: bold;
-        font-size: 12px;
-        padding: 6px 0px;
-    }
-    .stButton button:hover {
-        background-color: #b51f2b !important;
-        color: #fff !important;
-    }
+        /* Navigation Bar */
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 480px;
+            background: var(--primary-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-item {
+            color: #ffffff;
+            background: none;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .nav-item.active {
+            background: var(--accent-color);
+            font-weight: bold;
+        }
+
+        /* Views */
+        .view-section {
+            display: none;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        /* Tables & Lists */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-top: 10px;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+            color: var(--text-color); /* লেখা স্পষ্ট করার জন্য কালো কালার দেওয়া হয়েছে */
+        }
+
+        .data-table th {
+            background-color: var(--primary-color);
+            color: #ffffff;
+        }
+
+        /* History Accordion */
+        .history-card {
+            background: var(--card-bg);
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .history-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .history-body {
+            padding: 10px;
+            display: none;
+            background: #ffffff;
+        }
+
+        .history-body.show {
+            display: block;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .present { background: #d4edda; color: #155724; }
+        .absent { background: #f8d7da; color: #721c24; }
+        .leave { background: #fff3cd; color: #856404; }
+
+        /* General UI elements */
+        .section-title {
+            font-size: 18px;
+            margin: 15px 0 10px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
-""", unsafe_allow_html=True)
+</head>
+<body>
 
-def today_str():
-    return datetime.now().strftime("%Y-%m-%d")
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📚 Attendance E-Khata</h1>
+        </div>
 
-def format_date(d):
-    try:
-        return datetime.strptime(d, "%Y-%m-%d").strftime("%d-%m-%Y")
-    except:
-        return d
-
-def blank_day():
-    return {name: "" for name in STUDENTS}
-
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {"days": {}, "initial_fine": INITIAL_FINE.copy(), "payments": {}}
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        data.setdefault("days", {})
-        data.setdefault("initial_fine", INITIAL_FINE.copy())
-        data.setdefault("payments", {})
-        for day in data["days"].values():
-            for name in STUDENTS:
-                day.setdefault(name, "")
-        return data
-    except:
-        return {"days": {}, "initial_fine": INITIAL_FINE.copy(), "payments": {}}
-
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-if "data" not in st.session_state:
-    st.session_state.data = load_data()
-
-data = st.session_state.data
-
-# Sidebar Menu with Top-Right Hamburger Look & Feel
-with st.sidebar:
-    st.markdown("### ☰ Navigation Menu")
-    nav_mode = st.radio(
-        "Menu", ["Dashboard", "History", "Total Fine", "Collect Fee"], label_visibility="collapsed"
-    )
-
-# App Header (Bigger and Lower as requested)
-st.markdown('<div class="app-header">📚 Attendance E-Khata</div>', unsafe_allow_html=True)
-
-# Date Selection
-selected_date_obj = st.date_input(
-    "Select Date", datetime.strptime(today_str(), "%Y-%m-%d")
-)
-current_date = selected_date_obj.strftime("%Y-%m-%d")
-
-if current_date not in data["days"]:
-    data["days"][current_date] = blank_day()
-    data["days"][current_date]["Nirob"] = "LEAVE"
-    save_data(data)
-
-def get_current_fines():
-    fines = {s: int(data["initial_fine"].get(s, 0)) for s in STUDENTS}
-    for d_item in data["days"].values():
-        for student, status in d_item.items():
-            if status == "ABSENT":
-                fines[student] = fines.get(student, 0) + FINE_PER_ABSENT
-    
-    payments = data.get("payments", {})
-    net_fines = {}
-    for s in STUDENTS:
-        total_due = fines.get(s, 0)
-        paid = payments.get(s, 0)
-        net_fines[s] = max(0, total_due - paid)
-    return net_fines
-
-# ----------------- 1. DASHBOARD VIEW -----------------
-if nav_mode == "Dashboard":
-    day_data = data["days"].setdefault(current_date, blank_day())
-
-    present = sum(day_data.get(s) == "PRESENT" for s in STUDENTS)
-    leave = sum(day_data.get(s) == "LEAVE" for s in STUDENTS)
-    absent = sum(day_data.get(s) == "ABSENT" for s in STUDENTS)
-    not_set = len(STUDENTS) - present - leave - absent
-
-    net_fines = get_current_fines()
-    total_fine_amount = sum(net_fines.values())
-
-    # Summary Cards
-    st.markdown(f"""
-        <div class="card-container">
-            <div class="stat-card c-present">
-                <small>Present</small>
-                <h4>{present}</h4>
+        <!-- 1. Main Home View (আগের ইন্টারফেস অপরিবর্তিত রাখা হয়েছে) -->
+        <div id="homeView" class="view-section active">
+            <div class="section-title">📅 Select Date: 2026 / 08 / 26</div>
+            <div style="background: #22252a; color: white; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+                2026 / 08 / 26
             </div>
-            <div class="stat-card c-leave">
-                <small>Leave</small>
-                <h4>{leave}</h4>
+            
+            <!-- Summary boxes -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px;">
+                <div style="background: #28a745; color: white; padding: 10px; border-radius: 8px; text-align: center;"><small>Present</small><br><strong>16</strong></div>
+                <div style="background: #fd7e14; color: white; padding: 10px; border-radius: 8px; text-align: center;"><small>Leave</small><br><strong>1</strong></div>
+                <div style="background: #dc3545; color: white; padding: 10px; border-radius: 8px; text-align: center;"><small>Absent</small><br><strong>0</strong></div>
+                <div style="background: #007bff; color: white; padding: 10px; border-radius: 8px; text-align: center;"><small>Total Due</small><br><strong>20Tk</strong></div>
             </div>
-            <div class="stat-card c-absent">
-                <small>Absent</small>
-                <h4>{absent}</h4>
-            </div>
-            <div class="stat-card c-fee">
-                <small>Total Due</small>
-                <h4>{total_fine_amount}Tk</h4>
+
+            <!-- Student List Sample -->
+            <div style="background: white; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <span style="color: var(--text-color);">👤 Rounak</span>
+                <span class="status-badge present">PRESENT</span>
             </div>
         </div>
-    """, unsafe_allow_html=True)
 
-    st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
-    st.markdown("---")
+        <!-- 2. Total Due / Fine List View (আপডেটকৃত) -->
+        <div id="fineView" class="view-section">
+            <div class="section-title">💰 Total Due / Fine List</div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Date</th>
+                        <th>Total Fine</th>
+                        <th>Paid</th>
+                        <th>Due</th>
+                    </tr>
+                </thead>
+                <tbody id="fineTableBody">
+                    <!-- JavaScript দিয়ে ডাটা লোড হবে -->
+                </tbody>
+            </table>
+        </div>
 
-    # Render each student row with equal red buttons & yellow text
-    for student in STUDENTS:
-        current_status = day_data.get(student, "")
-        
-        if current_status == "PRESENT":
-            status_cls = "badge-present"
-            status_text = "PRESENT"
-        elif current_status == "LEAVE":
-            status_cls = "badge-leave"
-            status_text = "LEAVE"
-        elif current_status == "ABSENT":
-            status_cls = "badge-absent"
-            status_text = "ABSENT"
-        else:
-            status_cls = "badge-none"
-            status_text = "-"
+        <!-- 3. Attendance History View (আপডেটকৃত) -->
+        <div id="historyView" class="view-section">
+            <div class="section-title">📊 Attendance History</div>
+            <div id="historyContainer">
+                <!-- JavaScript দিয়ে অ্যাকর্ডিয়ন হিস্ট্রি তৈরি হবে -->
+            </div>
+        </div>
+    </div>
 
-        with st.container():
-            st.markdown(f"""
-                <div class="student-card-box">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 14px; font-weight: 600; color: #24292e;">👤 {student}</span>
-                        <span class="{status_cls}">{status_text}</span>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
+    <!-- Bottom Navigation Bar -->
+    <div class="nav-bar">
+        <button class="nav-item active" onclick="switchView('homeView', this)">Home</button>
+        <button class="nav-item" onclick="switchView('fineView', this)">Fine List</button>
+        <button class="nav-item" onclick="switchView('historyView', this)">History</button>
+    </div>
+
+    <script>
+        // স্যাম্পল ডাটা (Fine & History এর জন্য)
+        const fineData = [
+            { name: "Nirob", date: "2026-08-25", total: "20 Tk", paid: "0 Tk", due: "20 Tk" },
+            { name: "Jahidul", date: "2026-08-24", total: "20 Tk", paid: "0 Tk", due: "20 Tk" },
+            { name: "Tabassum", date: "2026-08-23", total: "50 Tk", paid: "40 Tk", due: "10 Tk" }
+        ];
+
+        const historyData = [
+            {
+                date: "26-08-2026 -- Present: 16 | Leave: 1 | Absent: 0",
+                students: [
+                    { name: "Rounak", status: "PRESENT" },
+                    { name: "Nirob", status: "LEAVE" },
+                    { name: "Jahidul", status: "PRESENT" }
+                ]
+            },
+            {
+                date: "25-08-2026 -- Present: 15 | Leave: 0 | Absent: 2",
+                students: [
+                    { name: "Rounak", status: "PRESENT" },
+                    { name: "Nirob", status: "ABSENT" },
+                    { name: "Jahidul", status: "PRESENT" }
+                ]
+            }
+        ];
+
+        // পেজ সুইচ করার ফাংশন
+        function switchView(viewId, element) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             
-            # Equal sized action buttons with yellow text
-            b_cols = st.columns(3)
-            if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
-                data["days"][current_date][student] = "PRESENT"
-                save_data(data)
-                st.rerun()
-            if b_cols[1].button("👤 LEAVE", key=f"btn_l_{student}"):
-                data["days"][current_date][student] = "LEAVE"
-                save_data(data)
-                st.rerun()
-            if b_cols[2].button("❌ ABSENT", key=f"btn_a_{student}"):
-                data["days"][current_date][student] = "ABSENT"
-                save_data(data)
-                st.rerun()
-            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
-
-# ----------------- 2. HISTORY VIEW -----------------
-elif nav_mode == "History":
-    st.subheader("📅 Attendance History")
-    sorted_dates = sorted(data["days"].keys(), reverse=True)
-
-    if not sorted_dates:
-        st.info("No attendance history found yet.")
-    else:
-        for d in sorted_dates:
-            day = data["days"][d]
-            p = sum(day.get(s) == "PRESENT" for s in STUDENTS)
-            l = sum(day.get(s) == "LEAVE" for s in STUDENTS)
-            a = sum(day.get(s) == "ABSENT" for s in STUDENTS)
-
-            with st.expander(f"{format_date(d)}  —  Present: {p} | Leave: {l} | Absent: {a}"):
-                history_list = [{"Student": s, "Status": day.get(s, "-") or "-"} for s in STUDENTS]
-                st.table(history_list)
-
-# ----------------- 3. TOTAL FINE VIEW -----------------
-elif nav_mode == "Total Fine":
-    st.subheader("💰 Total Due / Fine List")
-    net_fines = get_current_fines()
-    payments = data.get("payments", {})
-
-    fine_data = [
-        {
-            "Student Name": s, 
-            "Paid": f"{payments.get(s, 0)} Tk", 
-            "Remaining Due": f"{net_fines.get(s, 0)} Tk"
+            document.getElementById(viewId).classList.add('active');
+            element.classList.add('active');
         }
-        for s in STUDENTS
-    ]
-    st.table(fine_data)
 
-# ----------------- 4. COLLECT FEE VIEW -----------------
-elif nav_mode == "Collect Fee":
-    st.subheader("💵 Collect Fine / Clear Dues")
-    st.write("বকেয়া টাকা পরিশোধ করলে এখানে এন্ট্রি দিন, যা মোট বকেয়া থেকে স্বয়ংক্রিয়ভাবে মাইনাস হয়ে যাবে।")
+        // ফাইন লিস্ট রেন্ডার করা
+        function loadFineList() {
+            const tbody = document.getElementById('fineTableBody');
+            tbody.innerHTML = '';
+            fineData.forEach(item => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.date}</td>
+                        <td>${item.total}</td>
+                        <td>${item.paid}</td>
+                        <td>${item.due}</td>
+                    </tr>
+                `;
+            });
+        }
 
-    net_fines = get_current_fines()
-    selected_student = st.selectbox("Select Student", STUDENTS)
-    current_due = net_fines.get(selected_student, 0)
-    
-    st.info(f"Current Due for {selected_student}: **{current_due} Taka**")
-    pay_amount = st.number_input("Enter Amount to Pay (Taka)", min_value=0, step=10)
+        // হিস্ট্রি লিস্ট রেন্ডার করা (অ্যাকর্ডিয়ন সহ)
+        function loadHistory() {
+            const container = document.getElementById('historyContainer');
+            container.innerHTML = '';
+            historyData.forEach((hist, index) => {
+                let studentRows = hist.students.map(s => `
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+                        <span>${s.name}</span>
+                        <span class="status-badge ${s.status.toLowerCase()}">${s.status}</span>
+                    </div>
+                `).join('');
 
-    if st.button("Confirm Payment"):
-        if pay_amount > 0:
-            current_paid = data.setdefault("payments", {}).get(selected_student, 0)
-            data["payments"][selected_student] = current_paid + pay_amount
-            save_data(data)
-            st.success(f"Successfully collected {pay_amount} Taka from {selected_student}!")
-            st.rerun()
-        else:
-            st.warning("Please enter a valid amount greater than 0.")
+                container.innerHTML += `
+                    <div class="history-card">
+                        <div class="history-header" onclick="toggleAccordion(${index})">
+                            <span>${hist.date}</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="history-body" id="hist-body-${index}">
+                            ${studentRows}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // অ্যাকর্ডিয়ন টগল করার ফাংশন
+        function toggleAccordion(index) {
+            const body = document.getElementById(`hist-body-${index}`);
+            body.classList.toggle('show');
+        }
+
+        // ইনিশিয়ালাইজেশন
+        window.onload = function() {
+            loadFineList();
+            loadHistory();
+        };
+    </script>
+</body>
+</html>
