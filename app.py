@@ -16,12 +16,10 @@ DATA_FILE = "attendance_data.json"
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Custom CSS for UI adjustments matching your requirements
+# Custom CSS matching your exact requested design
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #ffffff; }
-    
-    /* Reduce top spacing */
     .block-container { padding-top: 1rem !important; }
 
     /* Compact Summary Cards */
@@ -46,10 +44,11 @@ st.markdown("""
     .stat-card small { font-size: 10px; color: #d0d7de; }
     .stat-card h4 { font-size: 14px; margin: 0; font-weight: bold; }
 
-    /* Student table badges */
-    .badge-p { color: #3fb950; font-weight: bold; font-size: 12px; }
-    .badge-l { color: #d29922; font-weight: bold; font-size: 12px; }
-    .badge-a { color: #f85149; font-weight: bold; font-size: 12px; }
+    /* Status Badges */
+    .badge-present { background-color: rgba(40, 167, 69, 0.15); color: #28a745; padding: 4px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #28a745; font-size: 12px; }
+    .badge-leave { background-color: rgba(255, 193, 7, 0.15); color: #ffc107; padding: 4px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #ffc107; font-size: 12px; }
+    .badge-absent { background-color: rgba(220, 53, 69, 0.15); color: #dc3545; padding: 4px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #dc3545; font-size: 12px; }
+    .badge-none { color: #8b949e; font-size: 12px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -97,7 +96,7 @@ with st.sidebar:
         "Navigation", ["Dashboard", "History", "Total Fine", "Collect Fee"], label_visibility="collapsed"
     )
 
-# App Header (Moved up closer)
+# App Header
 st.markdown("### 📚 Attendance E-Khata")
 st.markdown("---")
 
@@ -139,7 +138,7 @@ if nav_mode == "Dashboard":
     net_fines = get_current_fines()
     total_fine_amount = sum(net_fines.values())
 
-    # Compact Summary Cards with smaller text values
+    # Summary Cards
     st.markdown(f"""
         <div class="card-container">
             <div class="stat-card c-present">
@@ -164,31 +163,43 @@ if nav_mode == "Dashboard":
     st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
     st.markdown("---")
 
-    # Student list rows
+    # Table Header matching 2nd image style
+    h_col1, h_col2, h_col3 = st.columns([2.2, 2.3, 3.5])
+    h_col1.markdown("**Name**")
+    h_col2.markdown("**Status**")
+    h_col3.markdown("**Action**")
+
+    # Student list rows with user icon, status box, and ✔️ P / 👤 L / ❌ A buttons side-by-side
     for student in STUDENTS:
         current_status = day_data.get(student, "")
-        status_display = "-"
+        
         if current_status == "PRESENT":
-            status_display = '<span class="badge-p">PRESENT</span>'
+            status_html = '<span class="badge-present">PRESENT</span>'
         elif current_status == "LEAVE":
-            status_display = '<span class="badge-l">LEAVE</span>'
+            status_html = '<span class="badge-leave">LEAVE</span>'
         elif current_status == "ABSENT":
-            status_display = '<span class="badge-a">ABSENT</span>'
+            status_html = '<span class="badge-absent">ABSENT</span>'
+        else:
+            status_html = '<span class="badge-none">-</span>'
 
         cols = st.columns([2.2, 2.3, 3.5])
-        cols[0].markdown(f"**{student}**", unsafe_allow_html=True)
-        cols[1].markdown(status_display, unsafe_allow_html=True)
         
+        # Name with User Icon (👤)
+        cols[0].markdown(f"👤 **{student}**", unsafe_allow_html=True)
+        # Status Box
+        cols[1].markdown(status_html, unsafe_allow_html=True)
+        
+        # Action Buttons side by side with symbols (✔️ P, 👤 L, ❌ A)
         b_cols = cols[2].columns(3)
-        if b_cols[0].button("P", key=f"btn_p_{student}"):
+        if b_cols[0].button("✔️ P", key=f"btn_p_{student}"):
             data["days"][current_date][student] = "PRESENT"
             save_data(data)
             st.rerun()
-        if b_cols[1].button("L", key=f"btn_l_{student}"):
+        if b_cols[1].button("👤 L", key=f"btn_l_{student}"):
             data["days"][current_date][student] = "LEAVE"
             save_data(data)
             st.rerun()
-        if b_cols[2].button("A", key=f"btn_a_{student}"):
+        if b_cols[2].button("❌ A", key=f"btn_a_{student}"):
             data["days"][current_date][student] = "ABSENT"
             save_data(data)
             st.rerun()
