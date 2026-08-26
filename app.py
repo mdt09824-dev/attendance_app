@@ -16,7 +16,7 @@ DATA_FILE = "attendance_data.json"
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Custom CSS for clean Light Theme UI across all tabs
+# Custom CSS for clean Light Theme UI and Reset confirmation warning
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; color: #24292e; }
@@ -77,7 +77,6 @@ st.markdown("""
         padding: 6px 0px;
     }
 
-    /* Custom styling for clean visible tables in History and Fine view */
     table {
         width: 100%;
         color: #24292e !important;
@@ -130,11 +129,11 @@ if "data" not in st.session_state:
 
 data = st.session_state.data
 
-# Sidebar Navigation Menu
+# Sidebar Navigation Menu with Reset Option
 with st.sidebar:
     st.markdown("### ☰ Navigation Menu")
     nav_mode = st.radio(
-        "Menu", ["Dashboard", "History", "Total Fine", "Collect Fee"], label_visibility="collapsed"
+        "Menu", ["Dashboard", "History", "Total Fine", "Collect Fee", "Reset"], label_visibility="collapsed"
     )
 
 # App Header
@@ -232,7 +231,7 @@ if nav_mode == "Dashboard":
             if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
                 data["days"][current_date][student] = "PRESENT"
                 save_data(data)
-                st.rerurn()
+                st.rerun()
             if b_cols[1].button("👤 LEAVE", key=f"btn_l_{student}"):
                 data["days"][current_date][student] = "LEAVE"
                 save_data(data)
@@ -243,7 +242,7 @@ if nav_mode == "Dashboard":
                 st.rerun()
             st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
 
-# ----------------- 2. HISTORY VIEW (Fixed Visibility & Layout) -----------------
+# ----------------- 2. HISTORY VIEW -----------------
 elif nav_mode == "History":
     st.markdown("### 📅 Attendance History")
     sorted_dates = sorted(data["days"].keys(), reverse=True)
@@ -267,7 +266,7 @@ elif nav_mode == "History":
                     })
                 st.table(history_list)
 
-# ----------------- 3. TOTAL FINE VIEW (Updated Columns & Clear Visibility) -----------------
+# ----------------- 3. TOTAL FINE VIEW -----------------
 elif nav_mode == "Total Fine":
     st.markdown("### 💰 Total Due / Fine List")
     net_fines, gross_fines = get_current_fines()
@@ -307,3 +306,28 @@ elif nav_mode == "Collect Fee":
             st.rerun()
         else:
             st.warning("Please enter a valid amount greater than 0.")
+
+# ----------------- 5. RESET VIEW WITH CANCEL & RESET BUTTONS -----------------
+elif nav_mode == "Reset":
+    st.markdown("### ⚠️ Reset All Data")
+    st.warning("সতর্কতা: রিসেট করলে সমস্ত শিক্ষার্থীর উপস্থিতি, হিস্ট্রি এবং ফাইন/বকেয়ার হিসাব মুছে গিয়ে অ্যাপটি একদম নতুন অবস্থায় চলে যাবে।")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("Cancel"):
+            st.rerun()
+            
+    with col2:
+        if st.button("Reset"):
+            # Clear data file or reset state
+            if os.path.exists(DATA_FILE):
+                os.remove(DATA_FILE)
+            st.session_state.data = {
+                "days": {},
+                "initial_fine": INITIAL_FINE.copy(),
+                "payments": {}
+            }
+            save_data(st.session_state.data)
+            st.success("অ্যাপটি সফলভাবে রিসেট করা হয়েছে!")
+            st.rerun()
