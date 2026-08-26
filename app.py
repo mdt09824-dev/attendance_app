@@ -1,10 +1,24 @@
 import os
 import json
 from datetime import datetime, date
+
 import streamlit as st
 
+
 # =========================================================
-# CONFIG
+# APP CONFIG
+# =========================================================
+
+st.set_page_config(
+    page_title="Attendance E-Khata",
+    page_icon="📚",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+
+# =========================================================
+# DATA
 # =========================================================
 
 STUDENTS = [
@@ -23,564 +37,204 @@ INITIAL_FINE = {
 
 DATA_FILE = "attendance_data.json"
 
-st.set_page_config(
-    page_title="Attendance E-Khata",
-    page_icon="📚",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
 
 # =========================================================
-# CSS - MOBILE APP STYLE
+# MOBILE CSS
 # =========================================================
 
-st.markdown("""
-<style>
+st.markdown(
+    """
+    <style>
 
-* {
-    box-sizing: border-box;
-}
+    /* ---------- PAGE ---------- */
 
-html, body, [class*="css"] {
-    font-family: Arial, Helvetica, sans-serif;
-}
+    .stApp {
+        background: #f6f8fc;
+    }
 
-body {
-    background: #f6f8ff;
-}
-
-.stApp {
-    background: #f7f8fc;
-}
-
-/* Hide Streamlit default UI */
-#MainMenu {
-    visibility: hidden;
-}
-
-footer {
-    visibility: hidden;
-}
-
-header {
-    visibility: hidden;
-}
-
-/* Main mobile container */
-.block-container {
-    max-width: 460px !important;
-    padding: 0 12px 90px 12px !important;
-}
-
-/* Remove excessive gaps */
-.element-container {
-    margin-bottom: 0 !important;
-}
-
-/* ================= HEADER ================= */
-
-.app-header {
-    margin: -1px -12px 15px -12px;
-    padding: 20px 20px 24px 20px;
-    background: linear-gradient(
-        135deg,
-        #087cf5 0%,
-        #3158e8 48%,
-        #7a32ed 100%
-    );
-    color: white;
-    border-radius: 0 0 28px 28px;
-    box-shadow: 0 8px 25px rgba(57, 82, 230, 0.25);
-}
-
-.header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.menu-icon {
-    font-size: 28px;
-    line-height: 1;
-}
-
-.app-title {
-    font-size: 24px;
-    font-weight: 700;
-}
-
-.bell {
-    font-size: 26px;
-    position: relative;
-}
-
-.bell-badge {
-    position: absolute;
-    right: -7px;
-    top: -8px;
-    width: 20px;
-    height: 20px;
-    background: #ff3b30;
-    border-radius: 50%;
-    font-size: 12px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/* ================= DATE CARD ================= */
-
-.date-card {
-    background: white;
-    border: 1px solid #e4e8f2;
-    border-radius: 18px;
-    padding: 16px;
-    margin-bottom: 14px;
-    box-shadow: 0 4px 14px rgba(40, 55, 90, .06);
-}
-
-.date-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.date-left {
-    display: flex;
-    align-items: center;
-    gap: 13px;
-}
-
-.calendar-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: #eaf1ff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 26px;
-}
-
-.date-label {
-    font-size: 12px;
-    color: #778096;
-    margin-bottom: 4px;
-}
-
-.date-value {
-    font-size: 18px;
-    font-weight: 700;
-    color: #202840;
-}
-
-.count-row {
-    display: flex;
-    gap: 14px;
-    margin-top: 7px;
-    font-size: 13px;
-}
-
-.count-present {
-    color: #22a060;
-}
-
-.count-leave {
-    color: #ec9418;
-}
-
-.count-absent {
-    color: #ed3944;
-}
-
-.count-notset {
-    color: #666f80;
-}
-
-.change-date {
-    border: 1px solid #b9c9ec;
-    color: #2961d7;
-    background: #fff;
-    border-radius: 9px;
-    padding: 11px 12px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-/* ================= STAT CARDS ================= */
-
-.stat-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 9px;
-    margin-bottom: 15px;
-}
-
-.stat-card {
-    min-height: 145px;
-    border-radius: 14px;
-    padding: 13px 10px;
-    position: relative;
-    border: 1px solid;
-}
-
-.stat-title {
-    font-size: 13px;
-    color: #30394f;
-    margin-bottom: 13px;
-}
-
-.stat-number {
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 12px;
-}
-
-.stat-sub {
-    font-size: 12px;
-    color: #30394f;
-}
-
-.stat-icon {
-    position: absolute;
-    right: 10px;
-    bottom: 12px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 19px;
-}
-
-.present-card {
-    background: #eefaf3;
-    border-color: #d6efdf;
-}
-
-.present-card .stat-number {
-    color: #159447;
-}
-
-.present-card .stat-icon {
-    background: #20a35b;
-}
-
-.leave-card {
-    background: #fff8eb;
-    border-color: #f5e5c5;
-}
-
-.leave-card .stat-number {
-    color: #e78d0e;
-}
-
-.leave-card .stat-icon {
-    background: #f39a18;
-}
-
-.absent-card {
-    background: #fff0f2;
-    border-color: #f3d7dc;
-}
-
-.absent-card .stat-number {
-    color: #e93440;
-}
-
-.absent-card .stat-icon {
-    background: #eb3744;
-}
-
-.fee-card {
-    background: #eef4ff;
-    border-color: #d8e3f8;
-}
-
-.fee-card .stat-number {
-    color: #2462d5;
-    font-size: 23px;
-}
-
-.fee-after {
-    color: #159447;
-    font-size: 17px;
-    font-weight: 700;
-    margin-top: -5px;
-}
-
-/* ================= FEE BOX ================= */
-
-.fee-box {
-    background: linear-gradient(135deg, #f6f8ff, #edf3ff);
-    border: 1px solid #bdccec;
-    border-radius: 17px;
-    padding: 18px;
-    margin-bottom: 16px;
-}
-
-.fee-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.fee-side {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.wallet {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #654ce8, #8961ef);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-size: 23px;
-}
-
-.fee-label {
-    font-size: 13px;
-    color: #343d52;
-}
-
-.fee-amount {
-    font-size: 27px;
-    font-weight: 700;
-    color: #202a45;
-}
-
-.arrow {
-    font-size: 34px;
-    color: #7b8291;
-}
-
-.after-payment {
-    color: #1a9a54;
-}
-
-.collect-button {
-    margin-top: 15px;
-    background: linear-gradient(
-        90deg,
-        #086ff4,
-        #6b35ef
-    );
-    color: white;
-    text-align: center;
-    padding: 12px;
-    border-radius: 9px;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-/* ================= SECTION TITLE ================= */
-
-.section-title {
-    font-size: 17px;
-    font-weight: 700;
-    color: #273049;
-    margin: 18px 3px 10px;
-}
-
-/* ================= STUDENT LIST ================= */
-
-.student-header {
-    display: grid;
-    grid-template-columns: 1.45fr .85fr 1.45fr;
-    padding: 10px 9px;
-    color: #37415a;
-    background: #f1f4fb;
-    border-radius: 12px 12px 0 0;
-    font-size: 12px;
-}
-
-.student-row {
-    display: grid;
-    grid-template-columns: 1.45fr .85fr 1.45fr;
-    align-items: center;
-    padding: 9px 7px;
-    background: white;
-    border-bottom: 1px solid #edf0f5;
-}
-
-.student-name {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #273149;
-}
-
-.avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: #e9eef8;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-}
-
-.status-badge {
-    display: inline-block;
-    padding: 6px 5px;
-    border-radius: 7px;
-    font-size: 10px;
-    font-weight: 700;
-    text-align: center;
-}
-
-.status-present {
-    background: #e9f8ef;
-    color: #229653;
-}
-
-.status-leave {
-    background: #fff4df;
-    color: #e99216;
-}
-
-.status-absent {
-    background: #ffecef;
-    color: #e73543;
-}
-
-.status-empty {
-    background: #f1f3f6;
-    color: #777f8e;
-}
-
-/* Streamlit buttons */
-.stButton > button {
-    border-radius: 8px !important;
-    min-height: 34px !important;
-    padding: 2px 5px !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    border: 1px solid #dce2ec !important;
-    background: white !important;
-}
-
-.stButton > button:hover {
-    border-color: #6b7fe8 !important;
-    color: #315ee4 !important;
-}
-
-/* Action button columns */
-.action-wrap {
-    display: flex;
-    gap: 4px;
-}
-
-/* ================= BOTTOM NAV ================= */
-
-.bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(460px, 100%);
-    height: 72px;
-    background: rgba(255,255,255,.97);
-    border-top: 1px solid #e2e5ec;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    z-index: 9999;
-    box-shadow: 0 -5px 20px rgba(20,30,60,.08);
-}
-
-.nav-item {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 5px;
-    color: #60697b;
-    font-size: 10px;
-    font-weight: 600;
-}
-
-.nav-icon {
-    font-size: 23px;
-}
-
-.nav-active {
-    color: #1765df;
-}
-
-/* ================= FORMS ================= */
-
-.stSelectbox > div > div,
-.stNumberInput > div > div > input,
-.stDateInput > div > div > input {
-    border-radius: 10px !important;
-}
-
-.success-box {
-    background: #eaf9ef;
-    border: 1px solid #c8ecd5;
-    color: #18894a;
-    padding: 12px;
-    border-radius: 10px;
-}
-
-/* ================= DESKTOP ================= */
-
-@media (min-width: 700px) {
     .block-container {
         max-width: 480px !important;
+        padding-top: 0.5rem !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+        padding-bottom: 90px !important;
     }
-}
 
-</style>
-""", unsafe_allow_html=True)
+    header {
+        visibility: hidden;
+    }
+
+    #MainMenu {
+        visibility: hidden;
+    }
+
+    footer {
+        visibility: hidden;
+    }
+
+
+    /* ---------- GLOBAL ---------- */
+
+    * {
+        box-sizing: border-box;
+    }
+
+    h1, h2, h3, h4, p {
+        margin-top: 0 !important;
+    }
+
+
+    /* ---------- TOP HEADER ---------- */
+
+    .top-header {
+        margin: -8px -12px 15px -12px;
+        padding: 18px 18px;
+        border-radius: 0 0 24px 24px;
+        background: linear-gradient(
+            135deg,
+            #087af5,
+            #3856e8,
+            #7730ed
+        );
+        color: white;
+        box-shadow: 0 8px 20px rgba(59, 79, 225, 0.25);
+    }
+
+    .top-title {
+        font-size: 23px;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .top-subtitle {
+        font-size: 12px;
+        margin-top: 4px;
+        opacity: 0.9;
+    }
+
+
+    /* ---------- BUTTONS ---------- */
+
+    .stButton > button {
+        width: 100%;
+        min-height: 38px;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        border: 1px solid #d8deea !important;
+        background: white !important;
+        color: #2b354d !important;
+    }
+
+    .stButton > button:hover {
+        border-color: #4773ed !important;
+        color: #275fe0 !important;
+    }
+
+
+    /* ---------- DATE INPUT ---------- */
+
+    div[data-baseweb="input"] {
+        border-radius: 11px !important;
+    }
+
+    div[data-baseweb="select"] {
+        border-radius: 11px !important;
+    }
+
+
+    /* ---------- TABS / NAV ---------- */
+
+    div[role="radiogroup"] {
+        gap: 6px !important;
+    }
+
+    div[role="radiogroup"] label {
+        background: white !important;
+        border: 1px solid #e0e5ef !important;
+        border-radius: 11px !important;
+        padding: 8px 10px !important;
+    }
+
+
+    /* ---------- TABLE ---------- */
+
+    .student-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #273149;
+    }
+
+    .small-text {
+        font-size: 12px;
+        color: #717a8d;
+    }
+
+
+    /* ---------- FOOTER SPACE ---------- */
+
+    .bottom-space {
+        height: 65px;
+    }
+
+
+    /* ---------- MOBILE ---------- */
+
+    @media (max-width: 500px) {
+
+        .top-title {
+            font-size: 21px;
+        }
+
+        .block-container {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+        }
+
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
 # =========================================================
-# DATA FUNCTIONS
+# FUNCTIONS
 # =========================================================
 
 def today_str():
     return datetime.now().strftime("%Y-%m-%d")
 
 
-def format_date(d):
+def format_date(value):
     try:
         return datetime.strptime(
-            d, "%Y-%m-%d"
+            value,
+            "%Y-%m-%d"
         ).strftime("%d-%m-%Y")
-    except:
-        return d
+    except Exception:
+        return value
 
 
 def blank_day():
-    return {name: "" for name in STUDENTS}
+    return {
+        student: ""
+        for student in STUDENTS
+    }
+
+
+def default_data():
+    return {
+        "days": {},
+        "initial_fine": INITIAL_FINE.copy(),
+        "payments": {}
+    }
 
 
 def load_data():
 
     if not os.path.exists(DATA_FILE):
-        return {
-            "days": {},
-            "initial_fine": INITIAL_FINE.copy(),
-            "payments": {}
-        }
+        return default_data()
 
     try:
 
@@ -588,9 +242,9 @@ def load_data():
             DATA_FILE,
             "r",
             encoding="utf-8"
-        ) as f:
+        ) as file:
 
-            data = json.load(f)
+            data = json.load(file)
 
         data.setdefault("days", {})
         data.setdefault(
@@ -602,103 +256,81 @@ def load_data():
             {}
         )
 
-        for day_data in data["days"].values():
+        for day in data["days"].values():
 
-            for name in STUDENTS:
-                day_data.setdefault(
-                    name,
+            for student in STUDENTS:
+                day.setdefault(
+                    student,
                     ""
                 )
 
         return data
 
-    except:
+    except Exception:
 
-        return {
-            "days": {},
-            "initial_fine": INITIAL_FINE.copy(),
-            "payments": {}
-        }
+        return default_data()
 
 
 def save_data(data):
 
-    with open(
-        DATA_FILE,
-        "w",
-        encoding="utf-8"
-    ) as f:
+    try:
 
-        json.dump(
-            data,
-            f,
-            ensure_ascii=False,
-            indent=2
+        with open(
+            DATA_FILE,
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            json.dump(
+                data,
+                file,
+                ensure_ascii=False,
+                indent=2
+            )
+
+    except Exception as error:
+
+        st.error(
+            f"Data save error: {error}"
         )
 
-
-# =========================================================
-# SESSION DATA
-# =========================================================
-
-if "data" not in st.session_state:
-
-    st.session_state.data = load_data()
-
-
-data = st.session_state.data
-
-
-# =========================================================
-# CREATE TODAY
-# =========================================================
-
-if today_str() not in data["days"]:
-
-    data["days"][today_str()] = blank_day()
-
-    # Default example
-    if "Nirob" in STUDENTS:
-        data["days"][today_str()]["Nirob"] = "LEAVE"
-
-    save_data(data)
-
-
-# =========================================================
-# FINE CALCULATION
-# =========================================================
 
 def get_total_fines():
 
-    fines = {
-        s: int(
-            data["initial_fine"].get(s, 0)
+    fines = {}
+
+    for student in STUDENTS:
+
+        fines[student] = int(
+            data["initial_fine"].get(
+                student,
+                0
+            )
         )
-        for s in STUDENTS
-    }
 
-    for day_data in data["days"].values():
+    for day in data["days"].values():
 
-        for student, status in day_data.items():
+        for student in STUDENTS:
 
-            if status == "ABSENT":
+            if day.get(student) == "ABSENT":
 
-                fines[student] = (
-                    fines.get(student, 0)
-                    + FINE_PER_ABSENT
-                )
+                fines[student] += FINE_PER_ABSENT
 
     return fines
+
+
+def get_paid_amounts():
+
+    return data.get(
+        "payments",
+        {}
+    )
 
 
 def get_remaining_fines():
 
     total_fines = get_total_fines()
-
-    payments = data.get(
-        "payments",
-        {}
-    )
+    payments = get_paid_amounts()
 
     remaining = {}
 
@@ -723,89 +355,125 @@ def get_remaining_fines():
 
 
 # =========================================================
-# HEADER
+# LOAD DATA
 # =========================================================
 
-st.markdown("""
-<div class="app-header">
+if "data" not in st.session_state:
 
-    <div class="header-row">
+    st.session_state.data = load_data()
 
-        <div class="header-left">
 
-            <div class="menu-icon">☰</div>
-
-            <div class="app-title">
-                Attendance E-Khata
-            </div>
-
-        </div>
-
-        <div class="bell">
-
-            🔔
-
-            <div class="bell-badge">
-                3
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-""", unsafe_allow_html=True)
+data = st.session_state.data
 
 
 # =========================================================
-# NAVIGATION
+# DEFAULT TODAY
+# =========================================================
+
+if today_str() not in data["days"]:
+
+    data["days"][today_str()] = blank_day()
+
+    # Example initial leave
+    if "Nirob" in STUDENTS:
+        data["days"][today_str()]["Nirob"] = "LEAVE"
+
+    save_data(data)
+
+
+# =========================================================
+# CURRENT PAGE
 # =========================================================
 
 if "page" not in st.session_state:
     st.session_state.page = "Dashboard"
 
 
-nav_cols = st.columns(4)
+# =========================================================
+# SELECTED DATE
+# =========================================================
 
-with nav_cols[0]:
+if "selected_date" not in st.session_state:
+
+    st.session_state.selected_date = (
+        datetime.strptime(
+            today_str(),
+            "%Y-%m-%d"
+        ).date()
+    )
+
+
+# =========================================================
+# HEADER
+# =========================================================
+
+st.markdown(
+    """
+    <div class="top-header">
+        <div class="top-title">
+            ☰ &nbsp; Attendance E-Khata
+        </div>
+
+        <div class="top-subtitle">
+            Attendance & Fee Management
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# =========================================================
+# TOP NAVIGATION
+# =========================================================
+
+nav1, nav2, nav3, nav4 = st.columns(4)
+
+with nav1:
 
     if st.button(
         "🏠\nDashboard",
-        key="nav_dashboard",
+        key="dashboard_nav",
         use_container_width=True
     ):
         st.session_state.page = "Dashboard"
         st.rerun()
 
-with nav_cols[1]:
+
+with nav2:
 
     if st.button(
         "◷\nHistory",
-        key="nav_history",
+        key="history_nav",
         use_container_width=True
     ):
         st.session_state.page = "History"
         st.rerun()
 
-with nav_cols[2]:
+
+with nav3:
 
     if st.button(
         "💳\nTotal Fine",
-        key="nav_fine",
+        key="fine_nav",
         use_container_width=True
     ):
         st.session_state.page = "Total Fine"
         st.rerun()
 
-with nav_cols[3]:
+
+with nav4:
 
     if st.button(
         "•••\nMore",
-        key="nav_more",
+        key="more_nav",
         use_container_width=True
     ):
         st.session_state.page = "Collect Fee"
         st.rerun()
+
+
+st.write("")
 
 
 # =========================================================
@@ -814,43 +482,53 @@ with nav_cols[3]:
 
 if st.session_state.page == "Dashboard":
 
-    # -----------------------------------------
+    # -----------------------------------------------------
     # DATE
-    # -----------------------------------------
+    # -----------------------------------------------------
 
     selected_date = st.date_input(
-        "Date",
-        value=datetime.strptime(
-            today_str(),
-            "%Y-%m-%d"
-        ).date(),
-        label_visibility="collapsed"
+        "Select Date",
+        value=st.session_state.selected_date,
+        key="date_selector"
     )
 
-    current_date = selected_date.strftime(
-        "%Y-%m-%d"
+    if selected_date != st.session_state.selected_date:
+
+        st.session_state.selected_date = selected_date
+
+    current_date = (
+        st.session_state.selected_date
+        .strftime("%Y-%m-%d")
     )
 
+
+    # Create day
     if current_date not in data["days"]:
 
         data["days"][current_date] = blank_day()
         save_data(data)
 
+
     day_data = data["days"][current_date]
 
+
+    # -----------------------------------------------------
+    # COUNTS
+    # -----------------------------------------------------
+
     present = sum(
-        day_data.get(s) == "PRESENT"
-        for s in STUDENTS
+        day_data.get(student) == "PRESENT"
+        for student in STUDENTS
     )
 
     leave = sum(
-        day_data.get(s) == "LEAVE"
-        for s in STUDENTS
+        day_data.get(student) == "LEAVE"
+        for student in STUDENTS
     )
 
     absent = sum(
-        day_data.get(s) == "ABSENT"
-        for s in STUDENTS
+        day_data.get(student) == "ABSENT"
+        for student in STUDENTS
     )
 
     not_set = (
@@ -860,169 +538,507 @@ if st.session_state.page == "Dashboard":
         - absent
     )
 
+
+    # -----------------------------------------------------
+    # FEE
+    # -----------------------------------------------------
+
+    total_fines = get_total_fines()
+    remaining_fines = get_remaining_fines()
+
+    total_fee = sum(
+        total_fines.values()
+    )
+
+    after_payment = sum(
+        remaining_fines.values()
+    )
+
+
+    # =====================================================
+    # DATE SUMMARY
+    # =====================================================
+
+    st.container(border=True)
+
+    st.markdown(
+        f"### 📅 {format_date(current_date)}"
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.markdown(
+            f"**🟢 Present**  \n"
+            f"### {present}"
+        )
+
+    with c2:
+        st.markdown(
+            f"**🟠 Leave**  \n"
+            f"### {leave}"
+        )
+
+    with c3:
+        st.markdown(
+            f"**🔴 Absent**  \n"
+            f"### {absent}"
+        )
+
+    with c4:
+        st.markdown(
+            f"**⚪ Not Set**  \n"
+            f"### {not_set}"
+        )
+
+
+    st.write("")
+
+
+    # =====================================================
+    # FEE SUMMARY
+    # =====================================================
+
+    st.subheader("💰 Fee Summary")
+
+    fee1, fee2 = st.columns(2)
+
+    with fee1:
+
+        st.info(
+            f"### {total_fee} Tk\n"
+            f"Total Fee"
+        )
+
+    with fee2:
+
+        if after_payment > 0:
+
+            st.success(
+                f"### {after_payment} Tk\n"
+                f"After Payment"
+            )
+
+        else:
+
+            st.success(
+                "### 0 Tk\n"
+                "All Paid"
+            )
+
+
+    # =====================================================
+    # PAYMENT BUTTON
+    # =====================================================
+
+    if st.button(
+        "💳  Collect / Pay Fee",
+        key="collect_dashboard",
+        use_container_width=True
+    ):
+
+        st.session_state.page = "Collect Fee"
+        st.rerun()
+
+
+    # =====================================================
+    # STUDENTS
+    # =====================================================
+
+    st.subheader("👥 Students")
+
+
+    for index, student in enumerate(STUDENTS):
+
+        status = day_data.get(
+            student,
+            ""
+        )
+
+        # ---------------------------------------------
+        # STATUS TEXT
+        # ---------------------------------------------
+
+        if status == "PRESENT":
+
+            status_text = "🟢 PRESENT"
+
+        elif status == "LEAVE":
+
+            status_text = "🟠 LEAVE"
+
+        elif status == "ABSENT":
+
+            status_text = "🔴 ABSENT"
+
+        else:
+
+            status_text = "⚪ NOT SET"
+
+
+        # ---------------------------------------------
+        # STUDENT NAME
+        # ---------------------------------------------
+
+        st.markdown(
+            f"**{student}**  \n"
+            f"<span style='color:#687287;font-size:12px'>"
+            f"{status_text}"
+            f"</span>",
+            unsafe_allow_html=True
+        )
+
+
+        # ---------------------------------------------
+        # ACTION BUTTONS
+        # ---------------------------------------------
+
+        b1, b2, b3 = st.columns(3)
+
+
+        with b1:
+
+            if st.button(
+                "✓ P",
+                key=f"present_{current_date}_{index}",
+                use_container_width=True
+            ):
+
+                data["days"][
+                    current_date
+                ][student] = "PRESENT"
+
+                save_data(data)
+
+                st.rerun()
+
+
+        with b2:
+
+            if st.button(
+                "👤 L",
+                key=f"leave_{current_date}_{index}",
+                use_container_width=True
+            ):
+
+                data["days"][
+                    current_date
+                ][student] = "LEAVE"
+
+                save_data(data)
+
+                st.rerun()
+
+
+        with b3:
+
+            if st.button(
+                "✕ A",
+                key=f"absent_{current_date}_{index}",
+                use_container_width=True
+            ):
+
+                data["days"][
+                    current_date
+                ][student] = "ABSENT"
+
+                save_data(data)
+
+                st.rerun()
+
+
+        st.divider()
+
+
+    # =====================================================
+    # TOTAL FINE
+    # =====================================================
+
+    st.subheader("💵 Total Fine (Now)")
+
+    if after_payment > 0:
+
+        st.warning(
+            f"Current Outstanding: **{after_payment} Tk**"
+        )
+
+    else:
+
+        st.success(
+            "All outstanding fees are paid."
+        )
+
+
+# =========================================================
+# HISTORY
+# =========================================================
+
+elif st.session_state.page == "History":
+
+    st.subheader("📅 Attendance History")
+
+    sorted_dates = sorted(
+        data["days"].keys(),
+        reverse=True
+    )
+
+    if not sorted_dates:
+
+        st.info(
+            "No attendance history found."
+        )
+
+    else:
+
+        for day_date in sorted_dates:
+
+            day = data["days"][day_date]
+
+            present = sum(
+                day.get(student) == "PRESENT"
+                for student in STUDENTS
+            )
+
+            leave = sum(
+                day.get(student) == "LEAVE"
+                for student in STUDENTS
+            )
+
+            absent = sum(
+                day.get(student) == "ABSENT"
+                for student in STUDENTS
+            )
+
+            with st.expander(
+                f"{format_date(day_date)}   "
+                f"• P {present} "
+                f"• L {leave} "
+                f"• A {absent}"
+            ):
+
+                for student in STUDENTS:
+
+                    status = day.get(
+                        student,
+                        ""
+                    )
+
+                    if status == "PRESENT":
+                        icon = "🟢"
+
+                    elif status == "LEAVE":
+                        icon = "🟠"
+
+                    elif status == "ABSENT":
+                        icon = "🔴"
+
+                    else:
+                        icon = "⚪"
+
+                    st.write(
+                        f"{icon} **{student}** — "
+                        f"{status or 'NOT SET'}"
+                    )
+
+
+# =========================================================
+# TOTAL FINE
+# =========================================================
+
+elif st.session_state.page == "Total Fine":
+
+    st.subheader("💳 Total Fine")
+
+    total_fines = get_total_fines()
+    remaining_fines = get_remaining_fines()
+    payments = get_paid_amounts()
+
+
+    # Overall summary
+    total = sum(
+        total_fines.values()
+    )
+
+    paid = sum(
+        payments.get(
+            student,
+            0
+        )
+        for student in STUDENTS
+    )
+
+    remaining = sum(
+        remaining_fines.values()
+    )
+
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.metric(
+            "Total",
+            f"{total} Tk"
+        )
+
+    with c2:
+        st.metric(
+            "Paid",
+            f"{paid} Tk"
+        )
+
+    with c3:
+        st.metric(
+            "Due",
+            f"{remaining} Tk"
+        )
+
+
+    st.write("")
+
+
+    for student in STUDENTS:
+
+        total_student = total_fines.get(
+            student,
+            0
+        )
+
+        paid_student = payments.get(
+            student,
+            0
+        )
+
+        due_student = remaining_fines.get(
+            student,
+            0
+        )
+
+        with st.container(border=True):
+
+            st.markdown(
+                f"### 👤 {student}"
+            )
+
+            a, b, c = st.columns(3)
+
+            with a:
+                st.write(
+                    f"Total\n"
+                    f"**{total_student} Tk**"
+                )
+
+            with b:
+                st.write(
+                    f"Paid\n"
+                    f"**{paid_student} Tk**"
+                )
+
+            with c:
+                st.write(
+                    f"Due\n"
+                    f"**{due_student} Tk**"
+                )
+
+
+# =========================================================
+# COLLECT FEE
+# =========================================================
+
+elif st.session_state.page == "Collect Fee":
+
+    st.subheader("💵 Collect / Pay Fee")
+
+    st.info(
+        "কেউ বকেয়া টাকা পরিশোধ করলে "
+        "সেই টাকা মোট বকেয়া থেকে "
+        "স্বয়ংক্রিয়ভাবে কমে যাবে।"
+    )
+
+
+    student = st.selectbox(
+        "Select Student",
+        STUDENTS
+    )
+
+
     remaining = get_remaining_fines()
 
-    total_due = sum(
-        remaining.values()
+    current_due = remaining.get(
+        student,
+        0
     )
 
-    total_all_fines = sum(
-        get_total_fines().values()
+
+    st.metric(
+        "Current Due",
+        f"{current_due} Tk"
     )
 
-    # -----------------------------------------
-    # DATE CARD
-    # -----------------------------------------
 
-    st.markdown(f"""
-    <div class="date-card">
-
-        <div class="date-row">
-
-            <div class="date-left">
-
-                <div class="calendar-icon">
-                    📅
-                </div>
-
-                <div>
-
-                    <div class="date-label">
-                        Date
-                    </div>
-
-                    <div class="date-value">
-                        {format_date(current_date)}
-                    </div>
-
-                    <div class="count-row">
-
-                        <span class="count-present">
-                            Present: {present}
-                        </span>
-
-                        <span class="count-leave">
-                            Leave: {leave}
-                        </span>
-
-                        <span class="count-absent">
-                            Absent: {absent}
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="change-date">
-                📅 Change Date
-            </div>
-
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
+    amount = st.number_input(
+        "Payment Amount",
+        min_value=0,
+        max_value=max(
+            current_due,
+            0
+        ),
+        value=0,
+        step=10
+    )
 
 
-    # -----------------------------------------
-    # STAT CARDS
-    # -----------------------------------------
+    if st.button(
+        "💳 Confirm Payment",
+        use_container_width=True
+    ):
 
-    st.markdown(f"""
+        if current_due <= 0:
 
-    <div class="stat-grid">
+            st.success(
+                f"{student}-এর কোনো বকেয়া নেই।"
+            )
 
-        <div class="stat-card present-card">
+        elif amount <= 0:
 
-            <div class="stat-title">
-                Present
-            </div>
+            st.warning(
+                "Payment amount দিন।"
+            )
 
-            <div class="stat-number">
-                {present}
-            </div>
+        else:
 
-            <div class="stat-sub">
-                Students
-            </div>
+            data.setdefault(
+                "payments",
+                {}
+            )
 
-            <div class="stat-icon">
-                ✓
-            </div>
+            old_payment = data[
+                "payments"
+            ].get(
+                student,
+                0
+            )
 
-        </div>
+            data["payments"][
+                student
+            ] = old_payment + amount
 
+            save_data(data)
 
-        <div class="stat-card leave-card">
+            st.success(
+                f"{student}-এর কাছ থেকে "
+                f"{amount} Tk নেওয়া হয়েছে।"
+            )
 
-            <div class="stat-title">
-                Leave
-            </div>
-
-            <div class="stat-number">
-                {leave}
-            </div>
-
-            <div class="stat-sub">
-                Students
-            </div>
-
-            <div class="stat-icon">
-                👤
-            </div>
-
-        </div>
+            st.rerun()
 
 
-        <div class="stat-card absent-card">
+# =========================================================
+# BOTTOM INFO
+# =========================================================
 
-            <div class="stat-title">
-                Absent
-            </div>
+st.write("")
+st.write("")
 
-            <div class="stat-number">
-                {absent}
-            </div>
-
-            <div class="stat-sub">
-                Students
-            </div>
-
-            <div class="stat-icon">
-                ×
-            </div>
-
-        </div>
-
-
-        <div class="stat-card fee-card">
-
-            <div class="stat-title">
-                Total Fee
-            </div>
-
-            <div class="stat-number">
-                {total_all_fines} Tk
-            </div>
-
-            <div class="stat-sub">
-                After Payment
-            </div>
-
-            <div class="fee-after">
-                {total_due} Tk
-            </div>
-
-            <div class="stat-icon">
-                💳
-            </div>
-
-        </div>
-
-    </div>
-
-    """, unsafe_allow_html=True)
-
-
-    # -----------------------------------------
+st.caption(
+    "Attendance E-Khata • Mobile Web App"
+    )
