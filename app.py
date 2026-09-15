@@ -89,7 +89,7 @@ init_db()
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Modern, Colorful & Premium UI CSS Design
+# Modern, Colorful & Refined UI CSS Design
 st.markdown("""
     <style>
     .stApp { 
@@ -98,25 +98,26 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* Top Header Banner */
+    /* Compact & Elegant Top Header Banner */
     .app-banner {
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        padding: 22px;
-        border-radius: 18px;
+        padding: 14px 20px;
+        border-radius: 14px;
         color: white;
         text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 20px rgba(30, 60, 114, 0.2);
+        margin-bottom: 15px;
+        box-shadow: 0 4px 15px rgba(30, 60, 114, 0.15);
     }
     .app-banner h1 {
         margin: 0;
-        font-size: 26px;
-        font-weight: 800;
+        font-size: 20px;
+        font-weight: 700;
         color: #ffffff;
+        letter-spacing: 0.3px;
     }
     .app-banner p {
-        margin: 4px 0 0 0;
-        font-size: 12px;
+        margin: 2px 0 0 0;
+        font-size: 11px;
         opacity: 0.85;
         letter-spacing: 0.5px;
     }
@@ -147,10 +148,10 @@ st.markdown("""
     .student-card-box {
         background: #ffffff;
         border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        padding: 12px 16px;
-        margin-bottom: 6px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.03);
+        border-radius: 12px;
+        padding: 10px 14px;
+        margin-bottom: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -159,12 +160,12 @@ st.markdown("""
     .student-info {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
     }
 
     .avatar-circle {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: 50%;
         display: flex;
@@ -172,32 +173,33 @@ st.markdown("""
         justify-content: center;
         color: white;
         font-weight: 700;
-        font-size: 15px;
-        box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+        font-size: 13px;
+        box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
     }
 
     /* Status Badges */
-    .badge-present { background-color: #d1fae5; color: #065f46; border: 1px solid #34d399; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 11px; }
-    .badge-leave { background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 11px; }
-    .badge-absent { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 11px; }
-    .badge-none { background-color: #f1f5f9; color: #64748b; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-present { background-color: #d1fae5; color: #065f46; border: 1px solid #34d399; padding: 3px 8px; border-radius: 20px; font-weight: 700; font-size: 10px; }
+    .badge-leave { background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24; padding: 3px 8px; border-radius: 20px; font-weight: 700; font-size: 10px; }
+    .badge-absent { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 3px 8px; border-radius: 20px; font-weight: 700; font-size: 10px; }
+    .badge-none { background-color: #f1f5f9; color: #64748b; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
 
-    /* Custom Gradient Buttons */
+    /* Uniform & Styled Action Buttons (Present, Leave, Absent) */
     .stButton button {
         width: 100% !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 10px;
-        font-weight: 700;
-        font-size: 12px;
-        padding: 7px 0px;
-        box-shadow: 0 4px 10px rgba(118, 75, 162, 0.2);
+        background: #ffffff !important;
+        color: #374151 !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 11px;
+        padding: 5px 0px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         transition: all 0.2s ease;
     }
     .stButton button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 14px rgba(118, 75, 162, 0.35);
+        background: #f3f4f6 !important;
+        border-color: #9ca3af !important;
+        color: #111827 !important;
     }
 
     /* Tables Styling */
@@ -353,7 +355,7 @@ with st.sidebar:
         ], label_visibility="collapsed"
     )
 
-# Modern App Header Banner
+# Compact & Neat App Header Banner
 st.markdown("""
     <div class="app-banner">
         <h1>📚 Attendance E-Khata</h1>
@@ -425,23 +427,23 @@ if nav_mode == "Dashboard":
             <div class="student-card-box">
                 <div class="student-info">
                     <div class="avatar-circle">{initial_letter}</div>
-                    <span style="font-size: 15px; font-weight: 700; color: #1e293b;">{student}</span>
+                    <span style="font-size: 14px; font-weight: 700; color: #1e293b;">{student}</span>
                 </div>
                 <span class="{status_cls}">{status_text}</span>
             </div>
         """, unsafe_allow_html=True)
         
         b_cols = st.columns(3)
-        if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
+        if b_cols[0].button("✔️ Present", key=f"btn_p_{student}"):
             save_attendance_db(current_date, student, "PRESENT")
             st.rerun()
-        if b_cols[1].button("👤 LEAVE", key=f"btn_l_{student}"):
+        if b_cols[1].button("👤 Leave", key=f"btn_l_{student}"):
             save_attendance_db(current_date, student, "LEAVE")
             st.rerun()
-        if b_cols[2].button("❌ ABSENT", key=f"btn_a_{student}"):
+        if b_cols[2].button("❌ Absent", key=f"btn_a_{student}"):
             save_attendance_db(current_date, student, "ABSENT")
             st.rerun()
-        st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
 
 # ----------------- 2. HISTORY VIEW -----------------
 elif nav_mode == "History":
