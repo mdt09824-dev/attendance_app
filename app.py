@@ -78,15 +78,15 @@ st.markdown("""
     /* Compact Neat Header */
     .hero-header {
         background: linear-gradient(135deg, #2563eb 100%, #1d4ed8 0%);
-        padding: 10px 18px;
-        border-radius: 12px;
+        padding: 15px 20px;
+        border-radius: 14px;
         color: white;
         box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
-        margin-bottom: 12px;
+        margin-bottom: 15px;
         text-align: center;
     }
-    .hero-header h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.3px; }
-    .hero-header p { margin: 2px 0 0 0; opacity: 0.9; font-size: 10px; }
+    .hero-header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
+    .hero-header p { margin: 4px 0 0 0; opacity: 0.9; font-size: 12px; }
 
     /* Colorful Metric Cards Container (Fixed horizontal alignment) */
     .metric-container {
@@ -97,30 +97,30 @@ st.markdown("""
     }
     .metric-box-present {
         flex: 1; background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        padding: 10px 4px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(16, 185, 129, 0.25);
+        padding: 12px 6px; border-radius: 12px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(16, 185, 129, 0.25);
     }
     .metric-box-leave {
         flex: 1; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        padding: 10px 4px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(245, 158, 11, 0.25);
+        padding: 12px 6px; border-radius: 12px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(245, 158, 11, 0.25);
     }
     .metric-box-absent {
         flex: 1; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        padding: 10px 4px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(239, 68, 68, 0.25);
+        padding: 12px 6px; border-radius: 12px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(239, 68, 68, 0.25);
     }
     .metric-box-due {
         flex: 1; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-        padding: 10px 4px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(6, 182, 212, 0.25);
+        padding: 12px 6px; border-radius: 12px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(6, 182, 212, 0.25);
     }
-    .metric-box small { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .metric-box h3 { margin: 2px 0 0 0; font-size: 16px; font-weight: 800; }
+    .metric-box-present small, .metric-box-leave small, .metric-box-absent small, .metric-box-due small { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-box-present h3, .metric-box-leave h3, .metric-box-absent h3, .metric-box-due h3 { margin: 4px 0 0 0; font-size: 18px; font-weight: 800; }
 
     /* Student Row Card */
     .student-row {
         background: #1e293b;
         border: 1px solid #334155;
-        padding: 8px 12px;
+        padding: 10px 14px;
         border-radius: 10px;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -132,8 +132,8 @@ st.markdown("""
         width: 100% !important;
         border-radius: 20px !important;
         font-weight: 600 !important;
-        font-size: 11px !important;
-        padding: 5px 8px !important;
+        font-size: 12px !important;
+        padding: 6px 10px !important;
         border: 1px solid rgba(255,255,255,0.15) !important;
         transition: all 0.2s ease;
     }
@@ -146,7 +146,7 @@ st.markdown("""
     div[data-testid="stDataFrame"] {
         background: #1e293b;
         border-radius: 10px;
-        padding: 4px;
+        padding: 6px;
         border: 1px solid #334155;
     }
     </style>
@@ -174,7 +174,7 @@ def get_active_students_for_date(date_str):
         joined = row["joined_date"] or "2026-01-01"
         removed = row["removed_date"]
         
-        # Check if student was active on this date
+        # Check if student was active on this specific date
         if date_str >= joined and (removed is None or date_str <= removed):
             active.append(name)
     return active
@@ -267,7 +267,7 @@ def get_current_fines():
         net_fines[s] = max(0, fines.get(s, 0) - payments.get(s, 0))
     return net_fines, fines
 
-# Sidebar / Menu Navigation (Separated options as requested)
+# Sidebar Menu Navigation (Separate options as requested)
 with st.sidebar:
     st.markdown("### ⚙️ Menu & Options")
     nav_mode = st.selectbox("Select Function", [
@@ -280,11 +280,11 @@ with st.sidebar:
         "7. System Reset"
     ])
 
-# Compact Title Banner with Sticker/Icon
+# Compact Title Banner with Sticker/Icon (Fixed layout & alignment)
 st.markdown("""
     <div class="hero-header">
-        <h1>⚡ Attendance E-Khata Pro</h1>
-        <p>📚 Smart Student Attendance & Fee Management</p>
+        <h1>📚 Attendance E-Khata Pro</h1>
+        <p>⚡ Track &nbsp;•&nbsp; Manage &nbsp;•&nbsp; Build Better Future</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -391,14 +391,14 @@ elif nav_mode == "3. Fee Collection Gateway":
             conn.cursor().execute("INSERT INTO payments (student_name, paid_amount) VALUES (?, ?) ON CONFLICT(student_name) DO UPDATE SET paid_amount = ?", (sel_s, new_p, new_p))
             conn.commit()
             conn.close()
-            st.success(f"🎉 সফলভাবে {sel_s}-এর কাছ থেকে {amt} Tk ফি সংগ্রহ করা হয়েছে!")
+            st.success(f"🎉 সফলভাবে {sel_s}-এর কাছ থেকে {amt} Tk ফি সংগ্রহ করা হয়েছে এবং আপডেট সফল হয়েছে!")
             st.rerun()
         else:
             st.warning("দয়া করে সঠিক পরিমাণ টাকা লিখুন।")
 
 # 4. Attendance History Logs
 elif nav_mode == "4. Attendance History Logs":
-    st.markdown("### 📊 Historical Attendance Records")
+    st.markdown("### 📊 Historical Attendance Records & Presence Count")
     conn = get_db_connection()
     dates = [r["date"] for r in conn.cursor().execute("SELECT DISTINCT date FROM attendance ORDER BY date DESC").fetchall()]
     conn.close()
@@ -460,7 +460,7 @@ elif nav_mode == "5. Member Management":
             conn.cursor().execute("UPDATE students SET removed_date = ? WHERE name = ?", (today_str(), rem_s))
             conn.commit()
             conn.close()
-            st.success(f"✨ শিক্ষার্থী '{rem_s}' কে সফলভাবে তালিকা থেকে অব্যাহতি দেওয়া হয়েছে (নামের সাথে ক্রস যুক্ত করা হয়েছে)!")
+            st.success(f"✨ শিক্ষার্থী '{rem_s}' কে সফলভাবে তালিকা থেকে অব্যাহতি দেওয়া হয়েছে এবং নামের সাথে ক্রস যুক্ত করা হয়েছে!")
             st.rerun()
 
 # 6. Fine Settings & Rules
@@ -484,7 +484,7 @@ elif nav_mode == "6. Fine Settings & Rules":
             cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", (f"spec_{d}", str(amt)))
         conn.commit()
         conn.close()
-        st.success("🎉 ফাইন সেটিংস সফলভাবে আপডেট করা হয়েছে!")
+        st.success("🎉 ফাইন সেটিংস এবং বিশেষ দিনের নিয়ম সফলভাবে সেভ ও আপডেট হয়েছে!")
         st.rerun()
 
 # 7. System Reset
