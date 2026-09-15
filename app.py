@@ -1,8 +1,8 @@
 import os
 import sqlite3
-import pandas as pd
 from datetime import datetime
 import streamlit as st
+import pandas as pd
 
 DEFAULT_STUDENTS = [
     "Rounak", "Nirob", "Jahidul", "Abir", "Tafin",
@@ -27,19 +27,38 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS students (name TEXT PRIMARY KEY, phone TEXT, email TEXT, parent_phone TEXT)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS attendance (date TEXT, student_name TEXT, status TEXT, PRIMARY KEY (date, student_name))''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS payments (student_name TEXT PRIMARY KEY, paid_amount REAL)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS initial_fines (student_name TEXT PRIMARY KEY, amount REAL)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS fine_settings (key TEXT PRIMARY KEY, value TEXT)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, action TEXT)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS students (
+                        name TEXT PRIMARY KEY, 
+                        joined_date TEXT, 
+                        removed_date TEXT
+                    )''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS attendance (
+                        date TEXT, 
+                        student_name TEXT, 
+                        status TEXT, 
+                        PRIMARY KEY (date, student_name)
+                    )''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS payments (
+                        student_name TEXT PRIMARY KEY, 
+                        paid_amount REAL
+                    )''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS initial_fines (
+                        student_name TEXT PRIMARY KEY, 
+                        amount REAL
+                    )''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS fine_settings (
+                        key TEXT PRIMARY KEY, 
+                        value TEXT
+                    )''')
     
     conn.commit()
     
+    # Check if students table is empty
     cursor.execute("SELECT COUNT(*) FROM students")
     if cursor.fetchone()[0] == 0:
+        default_join_date = "2026-01-01"
         for s in DEFAULT_STUDENTS:
-            cursor.execute("INSERT OR IGNORE INTO students (name, phone, email, parent_phone) VALUES (?, ?, ?, ?)", (s, "01700000000", "student@gmail.com", "01800000000"))
+            cursor.execute("INSERT OR IGNORE INTO students (name, joined_date, removed_date) VALUES (?, ?, ?)", (s, default_join_date, None))
         for s, amt in INITIAL_FINE.items():
             cursor.execute("INSERT OR REPLACE INTO initial_fines (student_name, amount) VALUES (?, ?)", (s, amt))
         cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", ("regular", "20"))
@@ -48,49 +67,58 @@ def init_db():
 
 init_db()
 
-st.set_page_config(page_title="Attendance Pro", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="Attendance E-Khata Pro", page_icon="⚡", layout="centered")
 
-# Custom Refined UI Styling (Colorful & Clean Finish)
+# Custom Refined UI Styling (Light/Dark Theme Safe, Vibrant Cards & Clean Buttons)
 st.markdown("""
     <style>
+    /* Global styling */
     .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; font-family: 'Inter', sans-serif; }
     
     /* Compact Neat Header */
     .hero-header {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-        padding: 12px 20px;
+        background: linear-gradient(135deg, #2563eb 100%, #1d4ed8 0%);
+        padding: 10px 18px;
         border-radius: 12px;
         color: white;
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
-        margin-bottom: 15px;
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        margin-bottom: 12px;
         text-align: center;
     }
-    .hero-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
-    .hero-header p { margin: 2px 0 0 0; opacity: 0.85; font-size: 11px; }
+    .hero-header h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.3px; }
+    .hero-header p { margin: 2px 0 0 0; opacity: 0.9; font-size: 10px; }
 
-    /* Metric Cards */
+    /* Colorful Metric Cards Container (Fixed horizontal alignment) */
     .metric-container {
         display: flex;
         gap: 8px;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
+        width: 100%;
     }
-    .metric-box {
-        flex: 1;
-        background: #1e293b;
-        border: 1px solid #334155;
-        padding: 10px 5px;
-        border-radius: 10px;
-        text-align: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    .metric-box-present {
+        flex: 1; background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        padding: 10px 4px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(16, 185, 129, 0.25);
     }
-    .metric-box h4 { margin: 0; font-size: 10px; color: #94a3b8; text-transform: uppercase; }
-    .metric-box h2 { margin: 4px 0 0 0; font-size: 16px; color: #f8fafc; font-weight: 700; }
+    .metric-box-leave {
+        flex: 1; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        padding: 10px 4px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(245, 158, 11, 0.25);
+    }
+    .metric-box-absent {
+        flex: 1; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        padding: 10px 4px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(239, 68, 68, 0.25);
+    }
+    .metric-box-due {
+        flex: 1; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+        padding: 10px 4px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(6, 182, 212, 0.25);
+    }
+    .metric-box small { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-box h3 { margin: 2px 0 0 0; font-size: 16px; font-weight: 800; }
 
     /* Student Row Card */
     .student-row {
         background: #1e293b;
         border: 1px solid #334155;
-        padding: 10px 14px;
+        padding: 8px 12px;
         border-radius: 10px;
         margin-bottom: 6px;
         display: flex;
@@ -99,26 +127,26 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    /* Rounded Colorful Buttons */
+    /* Uniform Rounded Colorful Buttons */
     .stButton button {
         width: 100% !important;
         border-radius: 20px !important;
         font-weight: 600 !important;
-        font-size: 12px !important;
-        padding: 6px 10px !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
+        font-size: 11px !important;
+        padding: 5px 8px !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
         transition: all 0.2s ease;
     }
     .stButton button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
 
-    /* Table & Dataframe Styling */
+    /* Tables */
     div[data-testid="stDataFrame"] {
         background: #1e293b;
         border-radius: 10px;
-        padding: 5px;
+        padding: 4px;
         border: 1px solid #334155;
     }
     </style>
@@ -127,20 +155,37 @@ st.markdown("""
 def today_str():
     return datetime.now().strftime("%Y-%m-%d")
 
-def log_action(action):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO logs (timestamp, action) VALUES (?, ?)", (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), action))
-    conn.commit()
-    conn.close()
+def format_date(d_str):
+    try:
+        return datetime.strptime(d_str, "%Y-%m-%d").strftime("%d-%m-%Y")
+    except:
+        return d_str
 
-def get_students():
+def get_active_students_for_date(date_str):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM students")
+    cursor.execute("SELECT name, joined_date, removed_date FROM students")
     rows = cursor.fetchall()
     conn.close()
-    return [row["name"] for row in rows]
+    
+    active = []
+    for row in rows:
+        name = row["name"]
+        joined = row["joined_date"] or "2026-01-01"
+        removed = row["removed_date"]
+        
+        # Check if student was active on this date
+        if date_str >= joined and (removed is None or date_str <= removed):
+            active.append(name)
+    return active
+
+def get_all_students_ever():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name, joined_date, removed_date FROM students")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
 
 def get_day_attendance(date_str):
     conn = get_db_connection()
@@ -184,17 +229,25 @@ def get_fine_settings():
     conn.close()
     settings = {"regular": 20, "special_dates": {}}
     for row in rows:
-        if row["key"] == "regular":
-            settings["regular"] = int(row["value"])
+        key = row["key"]
+        val = row["value"]
+        if key == "regular":
+            settings["regular"] = int(val)
+        elif key.startswith("spec_"):
+            spec_date = key.replace("spec_", "")
+            settings["special_dates"][spec_date] = int(val)
     return settings
 
 def get_current_fines():
-    students = get_students()
+    all_students_info = get_all_students_ever()
+    all_names = [r["name"] for r in all_students_info]
     initial_fines = get_initial_fines()
     settings = get_fine_settings()
     regular_fine = settings.get("regular", 20)
+    special_dates = settings.get("special_dates", {})
     
-    fines = {s: int(initial_fines.get(s, 0)) for s in students}
+    fines = {s: int(initial_fines.get(s, 0)) for s in all_names}
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT date, student_name FROM attendance WHERE status = 'ABSENT'")
@@ -202,19 +255,19 @@ def get_current_fines():
     conn.close()
     
     for row in absent_records:
+        d_str = row["date"]
         student = row["student_name"]
+        day_fine = special_dates.get(d_str, regular_fine)
         if student in fines:
-            fines[student] += regular_fine
+            fines[student] += day_fine
             
     payments = get_payments()
     net_fines = {}
-    for s in students:
+    for s in all_names:
         net_fines[s] = max(0, fines.get(s, 0) - payments.get(s, 0))
     return net_fines, fines
 
-students = get_students()
-
-# Sidebar / Menu Navigation Options (Integrated cleanly)
+# Sidebar / Menu Navigation (Separated options as requested)
 with st.sidebar:
     st.markdown("### ⚙️ Menu & Options")
     nav_mode = st.selectbox("Select Function", [
@@ -227,46 +280,52 @@ with st.sidebar:
         "7. System Reset"
     ])
 
-# Compact Title Banner
+# Compact Title Banner with Sticker/Icon
 st.markdown("""
     <div class="hero-header">
         <h1>⚡ Attendance E-Khata Pro</h1>
-        <p>Smart Student Attendance & Fee Management</p>
+        <p>📚 Smart Student Attendance & Fee Management</p>
     </div>
 """, unsafe_allow_html=True)
 
 selected_date = st.date_input("Select Date", datetime.strptime(today_str(), "%Y-%m-%d"))
 current_date = selected_date.strftime("%Y-%m-%d")
+active_students = get_active_students_for_date(current_date)
 
 # 1. Daily Attendance Dashboard
 if nav_mode == "1. Daily Attendance Dashboard":
     day_data = get_day_attendance(current_date)
-    present = sum(1 for s in students if day_data.get(s) == "PRESENT")
-    leave = sum(1 for s in students if day_data.get(s) == "LEAVE")
-    absent = sum(1 for s in students if day_data.get(s) == "ABSENT")
+    present = sum(1 for s in active_students if day_data.get(s) == "PRESENT")
+    leave = sum(1 for s in active_students if day_data.get(s) == "LEAVE")
+    absent = sum(1 for s in active_students if day_data.get(s) == "ABSENT")
     net_fines, _ = get_current_fines()
+    total_due_sum = sum(net_fines.values())
     
     st.markdown(f"""
         <div class="metric-container">
-            <div class="metric-box"><h4>Present</h4><h2>{present}</h2></div>
-            <div class="metric-box"><h4>Leave</h4><h2>{leave}</h2></div>
-            <div class="metric-box"><h4>Absent</h4><h2>{absent}</h2></div>
-            <div class="metric-box"><h4>Total Due</h4><h2>{sum(net_fines.values())} Tk</h2></div>
+            <div class="metric-box-present"><small>Present</small><h3>{present}</h3></div>
+            <div class="metric-box-leave"><small>Leave</small><h3>{leave}</h3></div>
+            <div class="metric-box-absent"><small>Absent</small><h3>{absent}</h3></div>
+            <div class="metric-box-due"><small>Total Due</small><h3>{total_due_sum}Tk</h3></div>
         </div>
     """, unsafe_allow_html=True)
     
     # Quick Bulk Action Buttons
     c1, c2 = st.columns(2)
     if c1.button("✔️ Select All Present"):
-        for s in students: save_attendance(current_date, s, "PRESENT")
-        st.success("All marked present!"); st.rerun()
+        for s in active_students: 
+            save_attendance(current_date, s, "PRESENT")
+        st.success("✨ সফলভাবে সবাইকেই 'Present' হিসেবে মার্ক করা হয়েছে!")
+        st.rerun()
     if c2.button("👤 Select All Leave"):
-        for s in students: save_attendance(current_date, s, "LEAVE")
-        st.success("All marked leave!"); st.rerun()
+        for s in active_students: 
+            save_attendance(current_date, s, "LEAVE")
+        st.success("✨ সফলভাবে সবাইকেই 'Leave' হিসেবে মার্ক করা হয়েছে!")
+        st.rerun()
         
     st.markdown("---")
     
-    for student in students:
+    for student in active_students:
         status = day_data.get(student, "Not Set")
         badge_color = "#334155"
         if status == "PRESENT": badge_color = "#065f46"
@@ -282,25 +341,45 @@ if nav_mode == "1. Daily Attendance Dashboard":
         
         cols = st.columns(3)
         if cols[0].button("✔️ Present", key=f"p_{student}"): 
-            save_attendance(current_date, student, "PRESENT"); st.rerun()
+            save_attendance(current_date, student, "PRESENT")
+            st.success(f"✨ {student}-এর উপস্থিতি সফলভাবে সেভ হয়েছে!")
+            st.rerun()
         if cols[1].button("👤 Leave", key=f"l_{student}"): 
-            save_attendance(current_date, student, "LEAVE"); st.rerun()
+            save_attendance(current_date, student, "LEAVE")
+            st.success(f"✨ {student}-এর ছুটি সফলভাবে সেভ হয়েছে!")
+            st.rerun()
         if cols[2].button("❌ Absent", key=f"a_{student}"): 
-            save_attendance(current_date, student, "ABSENT"); st.rerun()
+            save_attendance(current_date, student, "ABSENT")
+            st.success(f"✨ {student}-এর অনুপস্থিতি সফলভাবে সেভ হয়েছে!")
+            st.rerun()
 
 # 2. Financial Ledger & Dues
 elif nav_mode == "2. Financial Ledger & Dues":
     st.markdown("### 💰 Financial Ledger & Fine Breakdown")
     net_fines, gross_fines = get_current_fines()
     payments = get_payments()
-    data = [{"Name": s, "Total Fine": f"{gross_fines.get(s,0)} Tk", "Paid": f"{payments.get(s,0)} Tk", "Due": f"{net_fines.get(s,0)} Tk"} for s in students]
+    all_info = get_all_students_ever()
+    
+    data = []
+    for info in all_info:
+        s = info["name"]
+        display_name = f"{s} ❌" if info["removed_date"] else s
+        data.append({
+            "Name": display_name,
+            "Total Fine": f"{gross_fines.get(s,0)} Tk",
+            "Paid": f"{payments.get(s,0)} Tk",
+            "Due": f"{net_fines.get(s,0)} Tk"
+        })
     st.dataframe(pd.DataFrame(data), use_container_width=True)
 
 # 3. Fee Collection Gateway
 elif nav_mode == "3. Fee Collection Gateway":
     st.markdown("### 💵 Secure Fee Collection Portal")
     net_fines, _ = get_current_fines()
-    sel_s = st.selectbox("Select Student", students)
+    all_info = get_all_students_ever()
+    all_names = [i["name"] for i in all_info]
+    
+    sel_s = st.selectbox("Select Student", all_names)
     due = net_fines.get(sel_s, 0)
     st.info(f"Outstanding Due for {sel_s}: **{due} Taka**")
     amt = st.number_input("Enter Amount Collected (Tk)", min_value=0, step=10)
@@ -310,9 +389,12 @@ elif nav_mode == "3. Fee Collection Gateway":
             new_p = payments.get(sel_s, 0) + amt
             conn = get_db_connection()
             conn.cursor().execute("INSERT INTO payments (student_name, paid_amount) VALUES (?, ?) ON CONFLICT(student_name) DO UPDATE SET paid_amount = ?", (sel_s, new_p, new_p))
-            conn.commit(); conn.close()
-            log_action(f"Collected {amt} Tk from {sel_s}")
-            st.success("Payment recorded successfully!"); st.rerun()
+            conn.commit()
+            conn.close()
+            st.success(f"🎉 সফলভাবে {sel_s}-এর কাছ থেকে {amt} Tk ফি সংগ্রহ করা হয়েছে!")
+            st.rerun()
+        else:
+            st.warning("দয়া করে সঠিক পরিমাণ টাকা লিখুন।")
 
 # 4. Attendance History Logs
 elif nav_mode == "4. Attendance History Logs":
@@ -320,40 +402,98 @@ elif nav_mode == "4. Attendance History Logs":
     conn = get_db_connection()
     dates = [r["date"] for r in conn.cursor().execute("SELECT DISTINCT date FROM attendance ORDER BY date DESC").fetchall()]
     conn.close()
+    
     if dates:
         chosen = st.selectbox("Select History Date", dates)
         day_data = get_day_attendance(chosen)
-        df = pd.DataFrame([{"Student Name": s, "Status": day_data.get(s, "Not Set")} for s in students])
-        st.dataframe(df, use_container_width=True)
+        active_on_day = get_active_students_for_date(chosen)
+        
+        # Calculate days present count for each student across history
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT student_name, COUNT(*) as days_present FROM attendance WHERE status = 'PRESENT' GROUP BY student_name")
+        present_counts = {row["student_name"]: row["days_present"] for row in cursor.fetchall()}
+        conn.close()
+        
+        df_list = []
+        for s in active_on_day:
+            df_list.append({
+                "Student Name": s,
+                "Status": day_data.get(s, "Not Set"),
+                "Total Days Present": present_counts.get(s, 0)
+            })
+        st.dataframe(pd.DataFrame(df_list), use_container_width=True)
     else:
-        st.info("No historical records available.")
+        st.info("কোনো হিস্টোরিক্যাল রেকর্ড পাওয়া যায়নি।")
 
 # 5. Member Management
 elif nav_mode == "5. Member Management":
     st.markdown("### 👥 Student Directory & Members")
-    new_s = st.text_input("New Member Full Name")
-    if st.button("Register Student"):
-        if new_s and new_s not in students:
+    
+    tab1, tab2 = st.tabs(["➕ Add Member", "❌ Remove Member"])
+    
+    with tab1:
+        new_s = st.text_input("New Member Full Name")
+        if st.button("Register Student"):
+            if new_s:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM students WHERE name = ?", (new_s,))
+                exists = cursor.fetchone()
+                if exists:
+                    cursor.execute("UPDATE students SET removed_date = NULL WHERE name = ?", (new_s,))
+                else:
+                    cursor.execute("INSERT INTO students (name, joined_date, removed_date) VALUES (?, ?, ?)", (new_s, today_str(), None))
+                conn.commit()
+                conn.close()
+                st.success(f"🎉 সফলভাবে নতুন শিক্ষার্থী '{new_s}' কে যুক্ত করা হয়েছে!")
+                st.rerun()
+            else:
+                st.warning("দয়া করে শিক্ষার্থীর নাম লিখুন।")
+                
+    with tab2:
+        all_info = get_all_students_ever()
+        active_names = [i["name"] for i in all_info if i["removed_date"] is None]
+        rem_s = st.selectbox("Select Student to Remove", active_names if active_names else ["No active students"])
+        if st.button("Confirm Removal") and active_names:
             conn = get_db_connection()
-            conn.cursor().execute("INSERT INTO students (name) VALUES (?)", (new_s,))
-            conn.commit(); conn.close()
-            st.success(f"Added {new_s} successfully!"); st.rerun()
+            conn.cursor().execute("UPDATE students SET removed_date = ? WHERE name = ?", (today_str(), rem_s))
+            conn.commit()
+            conn.close()
+            st.success(f"✨ শিক্ষার্থী '{rem_s}' কে সফলভাবে তালিকা থেকে অব্যাহতি দেওয়া হয়েছে (নামের সাথে ক্রস যুক্ত করা হয়েছে)!")
+            st.rerun()
 
 # 6. Fine Settings & Rules
 elif nav_mode == "6. Fine Settings & Rules":
-    st.markdown("### ⚙️ Fine Configuration")
+    st.markdown("### ⚙️ Fine Configuration & Special Dates")
     settings = get_fine_settings()
     reg = st.number_input("Absent Fine Amount (Taka)", value=settings.get("regular", 20))
+    
+    st.markdown("#### বিশেষ দিন বা পরীক্ষার দিনের ফাইন")
+    spec_date_input = st.date_input("Select Special Date", datetime.strptime(today_str(), "%Y-%m-%d"))
+    spec_date_str = spec_date_input.strftime("%Y-%m-%d")
+    existing_spec_fine = settings["special_dates"].get(spec_date_str, 30)
+    spec_fine_val = st.number_input(f"Fine for {format_date(spec_date_str)} (Taka)", value=int(existing_spec_fine))
+    
     if st.button("Save Settings"):
+        settings["special_dates"][spec_date_str] = spec_fine_val
         conn = get_db_connection()
-        conn.cursor().execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES ('regular', ?)", (str(reg),))
-        conn.commit(); conn.close()
-        st.success("Fine rules updated!")
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES ('regular', ?)", (str(reg),))
+        for d, amt in settings["special_dates"].items():
+            cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", (f"spec_{d}", str(amt)))
+        conn.commit()
+        conn.close()
+        st.success("🎉 ফাইন সেটিংস সফলভাবে আপডেট করা হয়েছে!")
+        st.rerun()
 
 # 7. System Reset
 elif nav_mode == "7. System Reset":
     st.markdown("### ⚠️ Factory Reset Center")
+    st.warning("সতর্কতা: রিসেট করলে ডাটাবেস সম্পূর্ণ মুছে যাবে।")
     if st.button("Reset Entire Application"):
-        if os.path.exists(DB_FILE): os.remove(DB_FILE)
+        if os.path.exists(DB_FILE): 
+            os.remove(DB_FILE)
         init_db()
-        st.success("System reset complete!"); st.rerun()
+        st.success("✨ সিস্টেম সফলভাবে রিসেট করা হয়েছে!")
+        st.rerun()
