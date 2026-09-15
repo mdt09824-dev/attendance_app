@@ -27,53 +27,98 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS students (name TEXT PRIMARY KEY)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS attendance (date TEXT, student_name TEXT, status TEXT, PRIMARY KEY (date, student_name))''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS payments (student_name TEXT PRIMARY KEY, paid_amount REAL)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS initial_fines (student_name TEXT PRIMARY KEY, amount REAL)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS fine_settings (key TEXT PRIMARY KEY, value TEXT)''')
+    # Students Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS students (
+            name TEXT PRIMARY KEY
+        )
+    ''')
+    
+    # Days / Attendance Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS attendance (
+            date TEXT,
+            student_name TEXT,
+            status TEXT,
+            PRIMARY KEY (date, student_name)
+        )
+    ''')
+    
+    # Payments Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS payments (
+            student_name TEXT PRIMARY KEY,
+            paid_amount REAL
+        )
+    ''')
+    
+    # Initial Fines Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS initial_fines (
+            student_name TEXT PRIMARY KEY,
+            amount REAL
+        )
+    ''')
+    
+    # Fine Settings Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS fine_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
     
     conn.commit()
     
+    # Initialize default data if tables are empty
     cursor.execute("SELECT COUNT(*) FROM students")
     if cursor.fetchone()[0] == 0:
         for s in DEFAULT_STUDENTS:
             cursor.execute("INSERT OR IGNORE INTO students (name) VALUES (?)", (s,))
+        
         for s, amt in INITIAL_FINE.items():
             cursor.execute("INSERT OR REPLACE INTO initial_fines (student_name, amount) VALUES (?, ?)", (s, amt))
+            
         cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", ("regular", "20"))
         conn.commit()
+    
     conn.close()
 
+# Initialize Database on Startup
 init_db()
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Custom CSS for Colorful & Modern UI
+# Modern, Colorful & Premium UI CSS Design
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(135deg, #f0f4ff 0%, #fef6ff 100%); color: #1f2937; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .stApp { 
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%); 
+        color: #1f2937; 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
     
-    /* Top Colorful Header Banner */
+    /* Top Header Banner */
     .app-banner {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #4facfe 100%);
-        padding: 25px 20px;
-        border-radius: 20px;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        padding: 22px;
+        border-radius: 18px;
         color: white;
         text-align: center;
         margin-bottom: 20px;
-        box-shadow: 0 10px 25px rgba(30, 60, 114, 0.2);
+        box-shadow: 0 8px 20px rgba(30, 60, 114, 0.2);
     }
     .app-banner h1 {
         margin: 0;
-        font-size: 28px;
+        font-size: 26px;
         font-weight: 800;
-        color: #fff;
+        color: #ffffff;
     }
     .app-banner p {
-        margin: 5px 0 0 0;
-        font-size: 13px;
-        opacity: 0.9;
+        margin: 4px 0 0 0;
+        font-size: 12px;
+        opacity: 0.85;
+        letter-spacing: 0.5px;
     }
 
     /* Stat Cards Container */
@@ -84,28 +129,28 @@ st.markdown("""
     }
     .stat-card {
         flex: 1;
-        padding: 15px 8px;
-        border-radius: 16px;
+        padding: 12px 6px;
+        border-radius: 14px;
         text-align: center;
         color: white;
-        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
     .c-present { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
     .c-leave { background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); }
     .c-absent { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
     .c-fee { background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }
 
-    .stat-card small { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat-card h4 { font-size: 20px; margin: 5px 0 0 0; font-weight: 800; }
+    .stat-card small { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.95; }
+    .stat-card h4 { font-size: 18px; margin: 4px 0 0 0; font-weight: 800; }
 
-    /* Student Item Card */
+    /* Student Card Box */
     .student-card-box {
         background: #ffffff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e5e7eb;
         border-radius: 14px;
-        padding: 12px 15px;
-        margin-bottom: 8px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        padding: 12px 16px;
+        margin-bottom: 6px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.03);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -118,17 +163,17 @@ st.markdown("""
     }
 
     .avatar-circle {
-        width: 38px;
-        height: 38px;
+        width: 36px;
+        height: 36px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-weight: bold;
-        font-size: 16px;
-        box-shadow: 0 3px 6px rgba(102, 126, 234, 0.3);
+        font-weight: 700;
+        font-size: 15px;
+        box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
     }
 
     /* Status Badges */
@@ -137,7 +182,7 @@ st.markdown("""
     .badge-absent { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 11px; }
     .badge-none { background-color: #f1f5f9; color: #64748b; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 
-    /* Button Styling */
+    /* Custom Gradient Buttons */
     .stButton button {
         width: 100% !important;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
@@ -146,24 +191,27 @@ st.markdown("""
         border-radius: 10px;
         font-weight: 700;
         font-size: 12px;
-        padding: 8px 0px;
+        padding: 7px 0px;
         box-shadow: 0 4px 10px rgba(118, 75, 162, 0.2);
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
     }
     .stButton button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(118, 75, 162, 0.4);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 14px rgba(118, 75, 162, 0.35);
     }
 
+    /* Tables Styling */
     table {
         width: 100%;
         background-color: white !important;
-        border-radius: 10px;
+        border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
     th {
         background-color: #e2e8f0 !important;
         color: #1e293b !important;
+        font-weight: 700 !important;
     }
     td {
         color: #334155 !important;
@@ -305,7 +353,7 @@ with st.sidebar:
         ], label_visibility="collapsed"
     )
 
-# App Colorful Header Banner
+# Modern App Header Banner
 st.markdown("""
     <div class="app-banner">
         <h1>📚 Attendance E-Khata</h1>
@@ -534,7 +582,7 @@ elif nav_mode == "Fine Setting":
     existing_spec_fine = special_dates.get(spec_date_str, 30)
     new_spec_fine = st.number_input(f"Fine for {format_date(spec_date_str)} (Taka)", min_value=0, value=int(existing_spec_fine), step=5)
 
-    if st.button("Save FineSettings"):
+    if st.button("Save Fine Settings"):
         special_dates[spec_date_str] = new_spec_fine
         save_fine_settings_db(new_regular, special_dates)
         st.success("Fine settings updated successfully!")
