@@ -69,16 +69,13 @@ init_db()
 
 st.set_page_config(page_title="Attendance E-Khata Pro", page_icon="⚡", layout="centered")
 
-# Custom Refined UI Styling (Light/Dark Theme Safe, Vibrant Cards & Clean Buttons)
 st.markdown("""
     <style>
-    /* Global styling */
     .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; font-family: 'Inter', sans-serif; }
     
-    /* Compact Neat Header */
     .hero-header {
         background: linear-gradient(135deg, #2563eb 100%, #1d4ed8 0%);
-        padding: 15px 20px;
+        padding: 16px 20px;
         border-radius: 14px;
         color: white;
         box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
@@ -86,9 +83,8 @@ st.markdown("""
         text-align: center;
     }
     .hero-header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
-    .hero-header p { margin: 4px 0 0 0; opacity: 0.9; font-size: 12px; }
+    .hero-header p { margin: 4px 0 0 0; opacity: 0.95; font-size: 12px; font-weight: 500; }
 
-    /* Colorful Metric Cards Container (Fixed horizontal alignment) */
     .metric-container {
         display: flex;
         gap: 8px;
@@ -111,10 +107,9 @@ st.markdown("""
         flex: 1; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
         padding: 12px 6px; border-radius: 12px; text-align: center; color: white; box-shadow: 0 3px 8px rgba(6, 182, 212, 0.25);
     }
-    .metric-box-present small, .metric-box-leave small, .metric-box-absent small, .metric-box-due small { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .metric-box-present h3, .metric-box-leave h3, .metric-box-absent h3, .metric-box-due h3 { margin: 4px 0 0 0; font-size: 18px; font-weight: 800; }
+    .metric-box-present small, .metric-box-leave small, .metric-box-absent small, .metric-box-due small { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-box-present h3, .metric-box-leave h3, .metric-box-absent h3, .metric-box-due h3 { margin: 4px 0 0 0; font-size: 16px; font-weight: 800; }
 
-    /* Student Row Card */
     .student-row {
         background: #1e293b;
         border: 1px solid #334155;
@@ -127,7 +122,6 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    /* Uniform Rounded Colorful Buttons */
     .stButton button {
         width: 100% !important;
         border-radius: 20px !important;
@@ -142,7 +136,6 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
 
-    /* Tables */
     div[data-testid="stDataFrame"] {
         background: #1e293b;
         border-radius: 10px;
@@ -232,10 +225,16 @@ def get_fine_settings():
         key = row["key"]
         val = row["value"]
         if key == "regular":
-            settings["regular"] = int(val)
+            try:
+                settings["regular"] = int(val)
+            except:
+                settings["regular"] = 20
         elif key.startswith("spec_"):
             spec_date = key.replace("spec_", "")
-            settings["special_dates"][spec_date] = int(val)
+            try:
+                settings["special_dates"][spec_date] = int(val)
+            except:
+                pass
     return settings
 
 def get_current_fines():
@@ -267,7 +266,6 @@ def get_current_fines():
         net_fines[s] = max(0, fines.get(s, 0) - payments.get(s, 0))
     return net_fines, fines
 
-# Sidebar Menu Navigation (Separate options as requested)
 with st.sidebar:
     st.markdown("### ⚙️ Menu & Options")
     nav_mode = st.selectbox("Select Function", [
@@ -280,7 +278,6 @@ with st.sidebar:
         "7. System Reset"
     ])
 
-# Compact Title Banner with Sticker/Icon (Fixed layout & alignment)
 st.markdown("""
     <div class="hero-header">
         <h1>📚 Attendance E-Khata Pro</h1>
@@ -292,7 +289,6 @@ selected_date = st.date_input("Select Date", datetime.strptime(today_str(), "%Y-
 current_date = selected_date.strftime("%Y-%m-%d")
 active_students = get_active_students_for_date(current_date)
 
-# 1. Daily Attendance Dashboard
 if nav_mode == "1. Daily Attendance Dashboard":
     day_data = get_day_attendance(current_date)
     present = sum(1 for s in active_students if day_data.get(s) == "PRESENT")
@@ -310,7 +306,6 @@ if nav_mode == "1. Daily Attendance Dashboard":
         </div>
     """, unsafe_allow_html=True)
     
-    # Quick Bulk Action Buttons
     c1, c2 = st.columns(2)
     if c1.button("✔️ Select All Present"):
         for s in active_students: 
@@ -342,18 +337,17 @@ if nav_mode == "1. Daily Attendance Dashboard":
         cols = st.columns(3)
         if cols[0].button("✔️ Present", key=f"p_{student}"): 
             save_attendance(current_date, student, "PRESENT")
-            st.success(f"✨ {student}-এর উপস্থিতি সফলভাবে সেভ হয়েছে!")
+            st.success(f"✨ সফল হয়েছে: {student}-এর উপস্থিতি সেভ করা হয়েছে!")
             st.rerun()
         if cols[1].button("👤 Leave", key=f"l_{student}"): 
             save_attendance(current_date, student, "LEAVE")
-            st.success(f"✨ {student}-এর ছুটি সফলভাবে সেভ হয়েছে!")
+            st.success(f"✨ সফল হয়েছে: {student}-এর ছুটি সেভ করা হয়েছে!")
             st.rerun()
         if cols[2].button("❌ Absent", key=f"a_{student}"): 
             save_attendance(current_date, student, "ABSENT")
-            st.success(f"✨ {student}-এর অনুপস্থিতি সফলভাবে সেভ হয়েছে!")
+            st.success(f"✨ সফল হয়েছে: {student}-এর অনুপস্থিতি সেভ করা হয়েছে!")
             st.rerun()
 
-# 2. Financial Ledger & Dues
 elif nav_mode == "2. Financial Ledger & Dues":
     st.markdown("### 💰 Financial Ledger & Fine Breakdown")
     net_fines, gross_fines = get_current_fines()
@@ -372,7 +366,6 @@ elif nav_mode == "2. Financial Ledger & Dues":
         })
     st.dataframe(pd.DataFrame(data), use_container_width=True)
 
-# 3. Fee Collection Gateway
 elif nav_mode == "3. Fee Collection Gateway":
     st.markdown("### 💵 Secure Fee Collection Portal")
     net_fines, _ = get_current_fines()
@@ -391,12 +384,11 @@ elif nav_mode == "3. Fee Collection Gateway":
             conn.cursor().execute("INSERT INTO payments (student_name, paid_amount) VALUES (?, ?) ON CONFLICT(student_name) DO UPDATE SET paid_amount = ?", (sel_s, new_p, new_p))
             conn.commit()
             conn.close()
-            st.success(f"🎉 সফলভাবে {sel_s}-এর কাছ থেকে {amt} Tk ফি সংগ্রহ করা হয়েছে এবং আপডেট সফল হয়েছে!")
+            st.success(f"🎉 সফল হয়েছে! {sel_s}-এর কাছ থেকে {amt} Tk ফি সফলভাবে সংগ্রহ ও আপডেট করা হয়েছে।")
             st.rerun()
         else:
             st.warning("দয়া করে সঠিক পরিমাণ টাকা লিখুন।")
 
-# 4. Attendance History Logs
 elif nav_mode == "4. Attendance History Logs":
     st.markdown("### 📊 Historical Attendance Records & Presence Count")
     conn = get_db_connection()
@@ -408,7 +400,6 @@ elif nav_mode == "4. Attendance History Logs":
         day_data = get_day_attendance(chosen)
         active_on_day = get_active_students_for_date(chosen)
         
-        # Calculate days present count for each student across history
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT student_name, COUNT(*) as days_present FROM attendance WHERE status = 'PRESENT' GROUP BY student_name")
@@ -426,7 +417,6 @@ elif nav_mode == "4. Attendance History Logs":
     else:
         st.info("কোনো হিস্টোরিক্যাল রেকর্ড পাওয়া যায়নি।")
 
-# 5. Member Management
 elif nav_mode == "5. Member Management":
     st.markdown("### 👥 Student Directory & Members")
     
@@ -446,7 +436,7 @@ elif nav_mode == "5. Member Management":
                     cursor.execute("INSERT INTO students (name, joined_date, removed_date) VALUES (?, ?, ?)", (new_s, today_str(), None))
                 conn.commit()
                 conn.close()
-                st.success(f"🎉 সফলভাবে নতুন শিক্ষার্থী '{new_s}' কে যুক্ত করা হয়েছে!")
+                st.success(f"🎉 সফল হয়েছে! নতুন শিক্ষার্থী '{new_s}' সফলভাবে যুক্ত হয়েছে।")
                 st.rerun()
             else:
                 st.warning("দয়া করে শিক্ষার্থীর নাম লিখুন।")
@@ -460,10 +450,9 @@ elif nav_mode == "5. Member Management":
             conn.cursor().execute("UPDATE students SET removed_date = ? WHERE name = ?", (today_str(), rem_s))
             conn.commit()
             conn.close()
-            st.success(f"✨ শিক্ষার্থী '{rem_s}' কে সফলভাবে তালিকা থেকে অব্যাহতি দেওয়া হয়েছে এবং নামের সাথে ক্রস যুক্ত করা হয়েছে!")
+            st.success(f"✨ সফল হয়েছে! শিক্ষার্থী '{rem_s}' কে তালিকা থেকে অব্যাহতি দেওয়া হয়েছে এবং নামের সাথে ক্রস যুক্ত করা হয়েছে।")
             st.rerun()
 
-# 6. Fine Settings & Rules
 elif nav_mode == "6. Fine Settings & Rules":
     st.markdown("### ⚙️ Fine Configuration & Special Dates")
     settings = get_fine_settings()
@@ -484,10 +473,9 @@ elif nav_mode == "6. Fine Settings & Rules":
             cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", (f"spec_{d}", str(amt)))
         conn.commit()
         conn.close()
-        st.success("🎉 ফাইন সেটিংস এবং বিশেষ দিনের নিয়ম সফলভাবে সেভ ও আপডেট হয়েছে!")
+        st.success("🎉 সফল হয়েছে! ফাইন সেটিংস এবং বিশেষ দিনের নিয়ম সফলভাবে সেভ ও আপডেট হয়েছে।")
         st.rerun()
 
-# 7. System Reset
 elif nav_mode == "7. System Reset":
     st.markdown("### ⚠️ Factory Reset Center")
     st.warning("সতর্কতা: রিসেট করলে ডাটাবেস সম্পূর্ণ মুছে যাবে।")
@@ -495,5 +483,5 @@ elif nav_mode == "7. System Reset":
         if os.path.exists(DB_FILE): 
             os.remove(DB_FILE)
         init_db()
-        st.success("✨ সিস্টেম সফলভাবে রিসেট করা হয়েছে!")
+        st.success("✨ সফলভাবে সিস্টেম রিসেট করা হয়েছে!")
         st.rerun()
