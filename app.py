@@ -27,11 +27,21 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Create tables if not exist
     cursor.execute('''CREATE TABLE IF NOT EXISTS students (
                         name TEXT PRIMARY KEY, 
                         joined_date TEXT, 
                         removed_date TEXT
                     )''')
+    
+    # Safe migration for existing tables if joined_date or removed_date is missing
+    cursor.execute("PRAGMA table_info(students)")
+    columns = [col["name"] for col in cursor.fetchall()]
+    if "joined_date" not in columns:
+        cursor.execute("ALTER TABLE students ADD COLUMN joined_date TEXT")
+    if "removed_date" not in columns:
+        cursor.execute("ALTER TABLE students ADD COLUMN removed_date TEXT")
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS attendance (
                         date TEXT, 
                         student_name TEXT, 
@@ -53,7 +63,7 @@ def init_db():
     
     conn.commit()
     
-    # Check if students table is empty
+    # Seed default data if students table is empty
     cursor.execute("SELECT COUNT(*) FROM students")
     if cursor.fetchone()[0] == 0:
         default_join_date = "2026-01-01"
@@ -280,7 +290,7 @@ with st.sidebar:
 
 st.markdown("""
     <div class="hero-header">
-        <h1>📚 Attendance E-Khata Pro</h1>
+        <h1>📚 Attendance E-Khata</h1>
         <p>⚡ Track &nbsp;•&nbsp; Manage &nbsp;•&nbsp; Build Better Future</p>
     </div>
 """, unsafe_allow_html=True)
