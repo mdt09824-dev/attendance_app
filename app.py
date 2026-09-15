@@ -27,140 +27,146 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Students Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS students (
-            name TEXT PRIMARY KEY
-        )
-    ''')
-    
-    # Days / Attendance Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS attendance (
-            date TEXT,
-            student_name TEXT,
-            status TEXT,
-            PRIMARY KEY (date, student_name)
-        )
-    ''')
-    
-    # Payments Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS payments (
-            student_name TEXT PRIMARY KEY,
-            paid_amount REAL
-        )
-    ''')
-    
-    # Initial Fines Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS initial_fines (
-            student_name TEXT PRIMARY KEY,
-            amount REAL
-        )
-    ''')
-    
-    # Fine Settings Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS fine_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-    ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS students (name TEXT PRIMARY KEY)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS attendance (date TEXT, student_name TEXT, status TEXT, PRIMARY KEY (date, student_name))''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS payments (student_name TEXT PRIMARY KEY, paid_amount REAL)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS initial_fines (student_name TEXT PRIMARY KEY, amount REAL)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS fine_settings (key TEXT PRIMARY KEY, value TEXT)''')
     
     conn.commit()
     
-    # Initialize default data if tables are empty
     cursor.execute("SELECT COUNT(*) FROM students")
     if cursor.fetchone()[0] == 0:
         for s in DEFAULT_STUDENTS:
             cursor.execute("INSERT OR IGNORE INTO students (name) VALUES (?)", (s,))
-        
         for s, amt in INITIAL_FINE.items():
             cursor.execute("INSERT OR REPLACE INTO initial_fines (student_name, amount) VALUES (?, ?)", (s, amt))
-            
         cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", ("regular", "20"))
         conn.commit()
-    
     conn.close()
 
-# Initialize Database on Startup
 init_db()
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
-# Custom CSS for styling
+# Custom CSS for Colorful & Modern UI
 st.markdown("""
     <style>
-    .stApp { background-color: #ffffff; color: #24292e; }
+    .stApp { background: linear-gradient(135deg, #f0f4ff 0%, #fef6ff 100%); color: #1f2937; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
-    .app-header {
-        margin-top: 25px;
-        margin-bottom: 15px;
+    /* Top Colorful Header Banner */
+    .app-banner {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #4facfe 100%);
+        padding: 25px 20px;
+        border-radius: 20px;
+        color: white;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 25px rgba(30, 60, 114, 0.2);
+    }
+    .app-banner h1 {
+        margin: 0;
         font-size: 28px;
         font-weight: 800;
-        text-align: center;
-        color: #1f2328;
-        border-bottom: 2px solid #eaeef2;
-        padding-bottom: 10px;
+        color: #fff;
+    }
+    .app-banner p {
+        margin: 5px 0 0 0;
+        font-size: 13px;
+        opacity: 0.9;
     }
 
+    /* Stat Cards Container */
     .card-container {
         display: flex;
-        gap: 6px;
-        margin-bottom: 10px;
+        gap: 10px;
+        margin-bottom: 15px;
     }
     .stat-card {
         flex: 1;
-        padding: 6px 4px;
-        border-radius: 8px;
+        padding: 15px 8px;
+        border-radius: 16px;
         text-align: center;
         color: white;
-        min-height: 50px;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
     }
-    .c-present { background-color: #2ea043; }
-    .c-leave { background-color: #fb8532; }
-    .c-absent { background-color: #cf222e; }
-    .c-fee { background-color: #0969da; }
+    .c-present { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .c-leave { background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); }
+    .c-absent { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
+    .c-fee { background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }
 
-    .stat-card small { font-size: 10px; color: #ffffff; }
-    .stat-card h4 { font-size: 13px; margin: 0; font-weight: bold; color: #ffffff; }
+    .stat-card small { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card h4 { font-size: 20px; margin: 5px 0 0 0; font-weight: 800; }
 
+    /* Student Item Card */
     .student-card-box {
-        background-color: #f6f8fa;
-        border: 1px solid #d0d7de;
-        border-radius: 8px;
-        padding: 8px 10px;
-        margin-bottom: 4px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 12px 15px;
+        margin-bottom: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .student-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
-    .badge-present { background-color: #dafbe1; color: #1a7f37; border: 1px solid #2ea043; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
-    .badge-leave { background-color: #fff8c5; color: #9a6700; border: 1px solid #fb8532; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
-    .badge-absent { background-color: #ffebe9; color: #cf222e; border: 1px solid #cf222e; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 11px; }
-    .badge-none { background-color: #eaeef2; color: #57606a; padding: 3px 8px; border-radius: 5px; font-size: 11px; }
+    .avatar-circle {
+        width: 38px;
+        height: 38px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+        box-shadow: 0 3px 6px rgba(102, 126, 234, 0.3);
+    }
 
+    /* Status Badges */
+    .badge-present { background-color: #d1fae5; color: #065f46; border: 1px solid #34d399; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 11px; }
+    .badge-leave { background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 11px; }
+    .badge-absent { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 11px; }
+    .badge-none { background-color: #f1f5f9; color: #64748b; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+
+    /* Button Styling */
     .stButton button {
         width: 100% !important;
-        background-color: #cf222e !important;
-        color: #ffdf00 !important;
-        border: 1px solid #a40e17 !important;
-        border-radius: 6px;
-        font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px;
+        font-weight: 700;
         font-size: 12px;
-        padding: 6px 0px;
+        padding: 8px 0px;
+        box-shadow: 0 4px 10px rgba(118, 75, 162, 0.2);
+        transition: all 0.3s ease;
+    }
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(118, 75, 162, 0.4);
     }
 
     table {
         width: 100%;
-        color: #24292e !important;
-        background-color: #f6f8fa !important;
+        background-color: white !important;
+        border-radius: 10px;
+        overflow: hidden;
     }
     th {
-        background-color: #eaeef2 !important;
-        color: #24292e !important;
+        background-color: #e2e8f0 !important;
+        color: #1e293b !important;
     }
     td {
-        color: #24292e !important;
+        color: #334155 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -299,8 +305,13 @@ with st.sidebar:
         ], label_visibility="collapsed"
     )
 
-# App Header
-st.markdown('<div class="app-header">📚 Attendance E-Khata</div>', unsafe_allow_html=True)
+# App Colorful Header Banner
+st.markdown("""
+    <div class="app-banner">
+        <h1>📚 Attendance E-Khata</h1>
+        <p>Track • Manage • Build Better Future</p>
+    </div>
+""", unsafe_allow_html=True)
 
 # Date Selection
 selected_date_obj = st.date_input(
@@ -341,7 +352,7 @@ if nav_mode == "Dashboard":
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown(f"**Date:** {format_date(current_date)} &nbsp;|&nbsp; **Not Set:** {not_set}")
+    st.markdown(f"**📅 Date:** {format_date(current_date)} &nbsp;|&nbsp; **⚠️ Not Set:** {not_set}")
     st.markdown("---")
 
     for student in students:
@@ -358,29 +369,31 @@ if nav_mode == "Dashboard":
             status_text = "ABSENT"
         else:
             status_cls = "badge-none"
-            status_text = "-"
+            status_text = "Not Set"
 
-        with st.container():
-            st.markdown(f"""
-                <div class="student-card-box">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 14px; font-weight: 600; color: #24292e;">👤 {student}</span>
-                        <span class="{status_cls}">{status_text}</span>
-                    </div>
+        initial_letter = student[0].upper()
+
+        st.markdown(f"""
+            <div class="student-card-box">
+                <div class="student-info">
+                    <div class="avatar-circle">{initial_letter}</div>
+                    <span style="font-size: 15px; font-weight: 700; color: #1e293b;">{student}</span>
                 </div>
-            """, unsafe_allow_html=True)
-            
-            b_cols = st.columns(3)
-            if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
-                save_attendance_db(current_date, student, "PRESENT")
-                st.rerun()
-            if b_cols[1].button("👤 LEAVE", key=f"btn_l_{student}"):
-                save_attendance_db(current_date, student, "LEAVE")
-                st.rerun()
-            if b_cols[2].button("❌ ABSENT", key=f"btn_a_{student}"):
-                save_attendance_db(current_date, student, "ABSENT")
-                st.rerun()
-            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+                <span class="{status_cls}">{status_text}</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        b_cols = st.columns(3)
+        if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
+            save_attendance_db(current_date, student, "PRESENT")
+            st.rerun()
+        if b_cols[1].button("👤 LEAVE", key=f"btn_l_{student}"):
+            save_attendance_db(current_date, student, "LEAVE")
+            st.rerun()
+        if b_cols[2].button("❌ ABSENT", key=f"btn_a_{student}"):
+            save_attendance_db(current_date, student, "ABSENT")
+            st.rerun()
+        st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
 # ----------------- 2. HISTORY VIEW -----------------
 elif nav_mode == "History":
@@ -521,7 +534,7 @@ elif nav_mode == "Fine Setting":
     existing_spec_fine = special_dates.get(spec_date_str, 30)
     new_spec_fine = st.number_input(f"Fine for {format_date(spec_date_str)} (Taka)", min_value=0, value=int(existing_spec_fine), step=5)
 
-    if st.button("Save Fine Settings"):
+    if st.button("Save FineSettings"):
         special_dates[spec_date_str] = new_spec_fine
         save_fine_settings_db(new_regular, special_dates)
         st.success("Fine settings updated successfully!")
