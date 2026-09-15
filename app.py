@@ -1,5 +1,5 @@
 import os
-import json
+import sqlite3
 from datetime import datetime
 import streamlit as st
 
@@ -15,7 +15,77 @@ INITIAL_FINE = {
     "Runa": 20
 }
 
-DATA_FILE = "attendance_data.json"
+# SQLite Database Setup
+DB_FILE = "attendance_ekhata.db"
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Students Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS students (
+            name TEXT PRIMARY KEY
+        )
+    ''')
+    
+    # Days / Attendance Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS attendance (
+            date TEXT,
+            student_name TEXT,
+            status TEXT,
+            PRIMARY KEY (date, student_name)
+        )
+    ''')
+    
+    # Payments Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS payments (
+            student_name TEXT PRIMARY KEY,
+            paid_amount REAL
+        )
+    ''')
+    
+    # Initial Fines Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS initial_fines (
+            student_name TEXT PRIMARY KEY,
+            amount REAL
+        )
+    ''')
+    
+    # Fine Settings Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS fine_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+    
+    conn.commit()
+    
+    # Initialize default data if tables are empty
+    cursor.execute("SELECT COUNT(*) FROM students")
+    if cursor.fetchone()[0] == 0:
+        for s in DEFAULT_STUDENTS:
+            cursor.execute("INSERT OR IGNORE INTO students (name) VALUES (?)", (s,))
+        
+        for s, amt in INITIAL_FINE.items():
+            cursor.execute("INSERT OR REPLACE INTO initial_fines (student_name, amount) VALUES (?, ?)", (s, amt))
+            
+        cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", ("regular", "20"))
+        conn.commit()
+    
+    conn.close()
+
+# Initialize Database on Startup
+init_db()
 
 st.set_page_config(page_title="Attendance E-Khata", page_icon="📚", layout="centered")
 
@@ -104,55 +174,117 @@ def format_date(d):
     except:
         return d
 
-def blank_day(students):
-    return {name: "" for name in students}
+# Database Helper Functions
+def get_students():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM students")
+    rows = cursor.fetchall()
+    conn.close()
+    return [row["name"] for row in rows]
 
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {
-            "students": DEFAULT_STUDENTS.copy(),
-            "days": {},
-            "initial_fine": INITIAL_FINE.copy(),
-            "payments": {},
-            "fine_settings": {
-                "regular": 20,
-                "special_dates": {} # format: {"YYYY-MM-DD": 30}
-            }
-        }
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        data.setdefault("students", DEFAULT_STUDENTS.copy())
-        data.setdefault("days", {})
-        data.setdefault("initial_fine", INITIAL_FINE.copy())
-        data.setdefault("payments", {})
-        data.setdefault("fine_settings", {"regular": 20, "special_dates": {}})
-        
-        students = data["students"]
-        for day in data["days"].values():
-            for name in students:
-                day.setdefault(name, "")
-        return data
-    except:
-        return {
-            "students": DEFAULT_STUDENTS.copy(),
-            "days": {},
-            "initial_fine": INITIAL_FINE.copy(),
-            "payments": {},
-            "fine_settings": {"regular": 20, "special_dates": {}}
-        }
+def get_day_attendance(date_str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT student_name, status FROM attendance WHERE date = ?", (date_str,))
+    rows = cursor.fetchall()
+    conn.close()
+    return {row["student_name"]: row["status"] for row in rows}
 
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def save_attendance_db(date_str, student_name, status):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO attendance (date, student_name, status) VALUES (?, ?, ?)
+        ON CONFLICT(date, student_name) DO UPDATE SET status = ?
+    ''', (date_str, student_name, status, status))
+    conn.commit()
+    conn.close()
 
-if "data" not in st.session_state:
-    st.session_state.data = load_data()
+def get_fine_settings_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT key, value FROM fine_settings")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    settings = {"regular": 20, "special_dates": {}}
+    for row in rows:
+        key = row["key"]
+        val = row["value"]
+        if key == "regular":
+            settings["regular"] = int(val)
+        elif key.startswith("spec_"):
+            spec_date = key.replace("spec_", "")
+            settings["special_dates"][spec_date] = int(val)
+    return settings
 
-data = st.session_state.data
-students = data["students"]
+def save_fine_settings_db(regular, special_dates):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", ("regular", str(regular)))
+    for d_str, amt in special_dates.items():
+        cursor.execute("INSERT OR REPLACE INTO fine_settings (key, value) VALUES (?, ?)", (f"spec_{d_str}", str(amt)))
+    conn.commit()
+    conn.close()
 
-# Sidebar Navigation Menu with exact requested order (Reset at the bottom)
+def get_payments_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT student_name, paid_amount FROM payments")
+    rows = cursor.fetchall()
+    conn.close()
+    return {row["student_name"]: row["paid_amount"] for row in rows}
+
+def get_initial_fines_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT student_name, amount FROM initial_fines")
+    rows = cursor.fetchall()
+    conn.close()
+    return {row["student_name"]: row["amount"] for row in rows}
+
+def get_all_attendance_dates():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT date FROM attendance ORDER BY date DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [row["date"] for row in rows]
+
+def get_current_fines():
+    students = get_students()
+    initial_fines = get_initial_fines_db()
+    fine_settings = get_fine_settings_db()
+    regular_fine = fine_settings.get("regular", 20)
+    special_dates = fine_settings.get("special_dates", {})
+
+    fines = {s: int(initial_fines.get(s, 0)) for s in students}
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT date, student_name, status FROM attendance WHERE status = 'ABSENT'")
+    absent_records = cursor.fetchall()
+    conn.close()
+    
+    for row in absent_records:
+        d_str = row["date"]
+        student = row["student_name"]
+        current_day_fine = special_dates.get(d_str, regular_fine)
+        if student in fines:
+            fines[student] = fines.get(student, 0) + current_day_fine
+    
+    payments = get_payments_db()
+    net_fines = {}
+    for s in students:
+        total_due = fines.get(s, 0)
+        paid = payments.get(s, 0)
+        net_fines[s] = max(0, total_due - paid)
+    return net_fines, fines
+
+students = get_students()
+
+# Sidebar Navigation Menu
 with st.sidebar:
     st.markdown("### ☰ Navigation Menu")
     nav_mode = st.radio(
@@ -176,39 +308,13 @@ selected_date_obj = st.date_input(
 )
 current_date = selected_date_obj.strftime("%Y-%m-%d")
 
-if current_date not in data["days"]:
-    data["days"][current_date] = blank_day(students)
-    save_data(data)
-
-def get_current_fines():
-    fine_settings = data.get("fine_settings", {"regular": 20, "special_dates": {}})
-    regular_fine = fine_settings.get("regular", 20)
-    special_dates = fine_settings.get("special_dates", {})
-
-    fines = {s: int(data["initial_fine"].get(s, 0)) for s in students}
-    
-    for d_str, d_item in data["days"].items():
-        current_day_fine = special_dates.get(d_str, regular_fine)
-        for student, status in d_item.items():
-            if status == "ABSENT":
-                if student in fines:
-                    fines[student] = fines.get(student, 0) + current_day_fine
-    
-    payments = data.get("payments", {})
-    net_fines = {}
-    for s in students:
-        total_due = fines.get(s, 0)
-        paid = payments.get(s, 0)
-        net_fines[s] = max(0, total_due - paid)
-    return net_fines, fines
-
 # ----------------- 1. DASHBOARD VIEW -----------------
 if nav_mode == "Dashboard":
-    day_data = data["days"].setdefault(current_date, blank_day(students))
+    day_data = get_day_attendance(current_date)
 
-    present = sum(day_data.get(s) == "PRESENT" for s in students)
-    leave = sum(day_data.get(s) == "LEAVE" for s in students)
-    absent = sum(day_data.get(s) == "ABSENT" for s in students)
+    present = sum(1 for s in students if day_data.get(s) == "PRESENT")
+    leave = sum(1 for s in students if day_data.get(s) == "LEAVE")
+    absent = sum(1 for s in students if day_data.get(s) == "ABSENT")
     not_set = len(students) - present - leave - absent
 
     net_fines, gross_fines = get_current_fines()
@@ -266,32 +372,29 @@ if nav_mode == "Dashboard":
             
             b_cols = st.columns(3)
             if b_cols[0].button("✔️ PRESENT", key=f"btn_p_{student}"):
-                data["days"][current_date][student] = "PRESENT"
-                save_data(data)
+                save_attendance_db(current_date, student, "PRESENT")
                 st.rerun()
             if b_cols[1].button("👤 LEAVE", key=f"btn_l_{student}"):
-                data["days"][current_date][student] = "LEAVE"
-                save_data(data)
+                save_attendance_db(current_date, student, "LEAVE")
                 st.rerun()
             if b_cols[2].button("❌ ABSENT", key=f"btn_a_{student}"):
-                data["days"][current_date][student] = "ABSENT"
-                save_data(data)
+                save_attendance_db(current_date, student, "ABSENT")
                 st.rerun()
             st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
 
 # ----------------- 2. HISTORY VIEW -----------------
 elif nav_mode == "History":
     st.markdown("### 📅 Attendance History")
-    sorted_dates = sorted(data["days"].keys(), reverse=True)
+    sorted_dates = get_all_attendance_dates()
 
     if not sorted_dates:
         st.info("No attendance history found yet.")
     else:
         for d in sorted_dates:
-            day = data["days"][d]
-            p = sum(day.get(s) == "PRESENT" for s in students)
-            l = sum(day.get(s) == "LEAVE" for s in students)
-            a = sum(day.get(s) == "ABSENT" for s in students)
+            day = get_day_attendance(d)
+            p = sum(1 for s in students if day.get(s) == "PRESENT")
+            l = sum(1 for s in students if day.get(s) == "LEAVE")
+            a = sum(1 for s in students if day.get(s) == "ABSENT")
 
             with st.expander(f"📅 {format_date(d)}  —  Present: {p} | Leave: {l} | Absent: {a}"):
                 history_list = []
@@ -307,7 +410,7 @@ elif nav_mode == "History":
 elif nav_mode == "Total Fine":
     st.markdown("### 💰 Total Due / Fine List")
     net_fines, gross_fines = get_current_fines()
-    payments = data.get("payments", {})
+    payments = get_payments_db()
 
     fine_data = []
     for s in students:
@@ -336,9 +439,19 @@ elif nav_mode == "Collect Fee":
 
     if st.button("Confirm Payment"):
         if pay_amount > 0:
-            current_paid = data.setdefault("payments", {}).get(selected_student, 0)
-            data["payments"][selected_student] = current_paid + pay_amount
-            save_data(data)
+            payments = get_payments_db()
+            current_paid = payments.get(selected_student, 0)
+            new_paid = current_paid + pay_amount
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO payments (student_name, paid_amount) VALUES (?, ?)
+                ON CONFLICT(student_name) DO UPDATE SET paid_amount = ?
+            ''', (selected_student, new_paid, new_paid))
+            conn.commit()
+            conn.close()
+            
             st.success(f"Successfully collected {pay_amount} Taka from {selected_student}!")
             st.rerun()
         else:
@@ -356,11 +469,11 @@ elif nav_mode == "Manage Members":
         new_name = st.text_input("Student Name")
         if st.button("Add Student"):
             if new_name and new_name not in students:
-                students.append(new_name)
-                data["students"] = students
-                for d in data["days"].values():
-                    d[new_name] = ""
-                save_data(data)
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO students (name) VALUES (?)", (new_name,))
+                conn.commit()
+                conn.close()
                 st.success(f"Successfully added {new_name}!")
                 st.rerun()
             elif new_name in students:
@@ -373,11 +486,14 @@ elif nav_mode == "Manage Members":
         rem_student = st.selectbox("Select Student to Remove", students)
         if st.button("Remove Student"):
             if rem_student in students:
-                students.remove(rem_student)
-                data["students"] = students
-                for d in data["days"].values():
-                    d.pop(rem_student, None)
-                save_data(data)
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM students WHERE name = ?", (rem_student,))
+                cursor.execute("DELETE FROM attendance WHERE student_name = ?", (rem_student,))
+                cursor.execute("DELETE FROM payments WHERE student_name = ?", (rem_student,))
+                cursor.execute("DELETE FROM initial_fines WHERE student_name = ?", (rem_student,))
+                conn.commit()
+                conn.close()
                 st.success(f"Successfully removed {rem_student}!")
                 st.rerun()
 
@@ -390,9 +506,10 @@ elif nav_mode == "Fine Setting":
     st.markdown("### ⚙️ Fine Settings")
     st.write("সাধারণ দিনের ফাইন রেট এবং পরীক্ষার দিন বা বিশেষ দিনের জন্য আলাদা ফাইন সেট করুন।")
 
-    fine_settings = data.setdefault("fine_settings", {"regular": 20, "special_dates": {}})
-    
+    fine_settings = get_fine_settings_db()
     current_regular = fine_settings.get("regular", 20)
+    special_dates = fine_settings.get("special_dates", {})
+    
     new_regular = st.number_input("Regular Fine Amount (Per Absent)", min_value=0, value=int(current_regular), step=5)
     
     st.markdown("#### Special / Exam Day Fine")
@@ -401,14 +518,12 @@ elif nav_mode == "Fine Setting":
     selected_spec_date = st.date_input("Select Special Date", datetime.strptime(today_str(), "%Y-%m-%d"))
     spec_date_str = selected_spec_date.strftime("%Y-%m-%d")
     
-    existing_spec_fine = fine_settings["special_dates"].get(spec_date_str, 30)
+    existing_spec_fine = special_dates.get(spec_date_str, 30)
     new_spec_fine = st.number_input(f"Fine for {format_date(spec_date_str)} (Taka)", min_value=0, value=int(existing_spec_fine), step=5)
 
     if st.button("Save Fine Settings"):
-        fine_settings["regular"] = new_regular
-        fine_settings["special_dates"][spec_date_str] = new_spec_fine
-        data["fine_settings"] = fine_settings
-        save_data(data)
+        special_dates[spec_date_str] = new_spec_fine
+        save_fine_settings_db(new_regular, special_dates)
         st.success("Fine settings updated successfully!")
         st.rerun()
 
@@ -425,15 +540,8 @@ elif nav_mode == "Reset":
             
     with col2:
         if st.button("Reset"):
-            if os.path.exists(DATA_FILE):
-                os.remove(DATA_FILE)
-            st.session_state.data = {
-                "students": DEFAULT_STUDENTS.copy(),
-                "days": {},
-                "initial_fine": INITIAL_FINE.copy(),
-                "payments": {},
-                "fine_settings": {"regular": 20, "special_dates": {}}
-            }
-            save_data(st.session_state.data)
+            if os.path.exists(DB_FILE):
+                os.remove(DB_FILE)
+            init_db()
             st.success("অ্যাপটি সফলভাবে রিসেট করা হয়েছে!")
             st.rerun()
